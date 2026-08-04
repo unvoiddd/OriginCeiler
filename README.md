@@ -2,10 +2,6 @@
 # Origin Root Toolbox
 
 Origin Root Toolbox is an LSPosed module that brings Pixel-exclusive features and modern Material You customization to rooted Vivo devices running OriginOS.
-<img width="1080" height="2344" alt="image" src="https://github.com/user-attachments/assets/c88c6b64-2ef3-4448-bb90-e82b559f5b9d" />
-<img width="1080" height="2344" alt="image" src="https://github.com/user-attachments/assets/70f482a1-8ef3-4fce-af0b-05007bfb0a9f" />
-<img width="1080" height="2344" alt="image" src="https://github.com/user-attachments/assets/25deb50a-f63f-4fbe-a7fc-bfd24505d89d" />
-<img width="1080" height="2344" alt="image" src="https://github.com/user-attachments/assets/c9928b98-c795-4659-ba97-1b1658988a2d" />
 
 ## Features
 

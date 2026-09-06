@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector android:name="root_vector" android:height="24.0dp" android:width="24.0dp" android:viewportWidth="24.0" android:viewportHeight="24.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:name="root_group" android:pivotX="32.0" android:pivotY="32.0" android:scaleX="0.76" android:scaleY="0.76" android:translateX="-20.0" android:translateY="-20.4">
+        <path android:name="ring0" android:pathData="M33.6844 35.3906C33.933 35.0244 34.1052 34.5963 34.1052 34.1052C34.1052 32.9425 33.1626 32 32 32C30.8373 32 29.8948 32.9425 29.8948 34.1052C29.8948 34.5963 30.1276 35.0753 30.3265 35.3906" android:strokeColor="#ffffffff" android:strokeWidth="2.8" android:strokeLineCap="round" android:strokeAlpha="0.0" />
+        <group android:name="ring1_group" android:pivotX="32.0" android:pivotY="32.0">
+            <path android:name="ring1" android:pathData="M37.4258 38.2344C38.2266 37.0547 38.7812 35.6758 38.7812 34.0938C38.7812 30.3486 35.7452 27.3125 32 27.3125C28.2548 27.3125 25.2188 30.3486 25.2188 34.0938C25.2188 35.6758 25.9688 37.2188 26.6094 38.2344" android:strokeColor="#ffffffff" android:strokeWidth="2.8" android:strokeLineCap="round" />
+        </group>
+        <group android:name="ring2_group" android:pivotX="32.0" android:pivotY="32.0">
+            <path android:name="ring2" android:pathData="M41.1487 42.0988C43.0213 39.9603 44.1562 37.1596 44.1562 34.0938C44.1562 27.38 38.7137 21.9375 32 21.9375C25.2863 21.9375 19.8438 27.38 19.8438 34.0938C19.8438 37.1596 20.9787 39.9603 22.8513 42.0988" android:strokeColor="#ffffffff" android:strokeWidth="2.8" android:strokeLineCap="round" />
+        </group>
+        <path android:name="circle" android:fillColor="#ffffffff" android:pathData="M32.0267 36.7785C31.2889 36.7785 30.6518 36.5214 30.1153 36.0072C29.6011 35.4707 29.344 34.8336 29.344 34.0958C29.344 33.3581 29.6011 32.7321 30.1153 32.218C30.6518 31.6814 31.2889 31.4132 32.0267 31.4132C32.7644 31.4132 33.3903 31.6814 33.9045 32.218C34.4411 32.7321 34.7093 33.3581 34.7093 34.0958C34.7093 34.8336 34.4411 35.4707 33.9045 36.0072C33.3903 36.5214 32.7644 36.7785 32.0267 36.7785Z" />
+    </group>
+</vector>
+

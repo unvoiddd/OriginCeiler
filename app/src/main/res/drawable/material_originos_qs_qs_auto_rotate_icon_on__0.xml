@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@anim/overshoot" android:duration="800" android:startOffset="0" android:valueFrom="-180" android:valueTo="-225" android:propertyName="rotation" />
+</set>
+

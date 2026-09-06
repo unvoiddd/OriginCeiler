@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/material_originos_qs_vd_wifi_off"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="line1_path" android:animation="@drawable/material_originos_qs_ic_wifi_off__0" />
+    <target android:name="line2_path" android:animation="@drawable/material_originos_qs_ic_wifi_off__1" />
+    <target android:name="circle" android:animation="@drawable/material_originos_qs_ic_wifi_off__2" />
+</animated-vector>
+

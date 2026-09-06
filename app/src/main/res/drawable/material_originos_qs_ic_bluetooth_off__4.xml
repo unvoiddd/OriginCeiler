@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set android:ordering="together"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@anim/spring_fast_effects" android:duration="350" android:startOffset="0" android:valueFrom="1" android:valueTo="1" android:propertyName="strokeAlpha" />
+</set>
+

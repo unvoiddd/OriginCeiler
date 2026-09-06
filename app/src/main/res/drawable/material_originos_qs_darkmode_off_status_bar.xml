@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/material_originos_qs_vd_theme_off"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="mask" android:animation="@drawable/material_originos_qs_qs_light_dark_theme_icon_off__0" />
+</animated-vector>
+

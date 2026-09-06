@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector android:name="root_vector" android:height="24.0dp" android:width="24.0dp" android:viewportWidth="24.0" android:viewportHeight="24.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:name="root_group" android:pivotX="32.0" android:pivotY="32.0" android:scaleX="0.76" android:scaleY="0.76" android:translateX="-20.0" android:translateY="-20.0">
+        <group android:name="circle">
+            <path android:name="circle_path" android:pathData="M43.9958 32C43.9958 38.6619 38.5952 44.0625 31.9333 44.0625C25.2714 44.0625 19.8708 38.6619 19.8708 32C19.8708 25.3381 25.2714 19.9375 31.9333 19.9375C38.5952 19.9375 43.9958 25.3381 43.9958 32Z" android:strokeColor="#ffffffff" android:strokeWidth="2.5" />
+        </group>
+        <group android:name="fill_group">
+            <clip-path android:name="mask" android:pathData="@string/path_theme_mask_off" />
+            <path android:name="fill_path" android:fillColor="#ffffffff" android:pathData="M43.9958 32C43.9958 38.6619 38.5952 44.0625 31.9333 44.0625C25.2714 44.0625 19.8708 38.6619 19.8708 32C19.8708 25.3381 25.2714 19.9375 31.9333 19.9375C38.5952 19.9375 43.9958 25.3381 43.9958 32Z" />
+        </group>
+    </group>
+</vector>
+

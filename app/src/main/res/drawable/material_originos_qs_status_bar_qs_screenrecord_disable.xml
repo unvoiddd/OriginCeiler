@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/material_originos_qs_vd_screenrecord"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="center" android:animation="@drawable/material_originos_qs_qs_screen_record_icon_off__0" />
+    <target android:name="center_group" android:animation="@drawable/material_originos_qs_qs_screen_record_icon_off__1" />
+    <target android:name="outer_group" android:animation="@drawable/material_originos_qs_qs_screen_record_icon_off__2" />
+</animated-vector>
+

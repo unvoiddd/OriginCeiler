@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/material_originos_qs_vd_hotspot"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="ring0" android:animation="@drawable/material_originos_qs_qs_hotspot_icon_on__0" />
+    <target android:name="ring1" android:animation="@drawable/material_originos_qs_qs_hotspot_icon_on__1" />
+    <target android:name="ring2" android:animation="@drawable/material_originos_qs_qs_hotspot_icon_on__2" />
+</animated-vector>
+

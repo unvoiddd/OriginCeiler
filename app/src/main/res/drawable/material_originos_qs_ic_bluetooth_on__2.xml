@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set android:ordering="together"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@anim/ease_out" android:duration="100" android:startOffset="200" android:valueFrom="0" android:valueTo="1" android:propertyName="trimPathEnd" />
+</set>
+

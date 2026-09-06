@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set android:ordering="together"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@anim/overshoot" android:duration="800" android:startOffset="0" android:propertyName="translateXY" android:pathData="M38.8 42.6562C39.1148 42.6562 39.5625 42.2085 39.5625 41.6562V22.3438C39.5625 21.7915 39.1148 21.3438 38.5625 21.3438H25.4375" android:propertyXName="translateX" android:propertyYName="translateY" />
+    <objectAnimator android:duration="15" android:startOffset="0" android:valueFrom="-135" android:valueTo="-225" android:propertyName="rotation" />
+    <objectAnimator android:duration="15" android:startOffset="70" android:valueFrom="-225" android:valueTo="-315" android:propertyName="rotation" />
+</set>
+

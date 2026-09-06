@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@anim/overshoot" android:duration="500" android:startOffset="0" android:valueFrom="M26.2251 31.8251C26.2251 28.7323 28.7323 26.2251 31.8251 26.2251H32.1749C35.2677 26.2251 37.7749 28.7323 37.7749 31.8251V32.1749C37.7749 35.2677 35.2677 37.7749 32.1749 37.7749H31.8251C28.7323 37.7749 26.2251 35.2677 26.2251 32.1749V31.8251Z" android:valueTo="M26.0002 27C26.0002 26.4477 26.448 26 27.0002 26H36.55C37.1023 26 37.55 26.4477 37.55 27V36.5498C37.55 37.1021 37.1023 37.5498 36.55 37.5498H27.0002C26.448 37.5498 26.0002 37.1021 26.0002 36.5498V27Z" android:valueType="pathType" android:propertyName="pathData" />
+</set>
+

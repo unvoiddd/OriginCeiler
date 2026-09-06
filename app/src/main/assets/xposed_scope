@@ -1,6 +1,7 @@
 com.android.systemui
 com.bbk.launcher2
 com.google.android.googlequicksearchbox
+com.google.android.inputmethod.latin
 com.vivo.launchercopilot
 com.vivo.ai.copilot
 com.vivo.upslide
@@ -14,3 +15,5 @@ com.iqoo.powersaving
 com.vivo.gamecube
 com.bbk.theme
 com.vivo.pay
+com.vivo.fingerprintui
+com.vivo.faceui

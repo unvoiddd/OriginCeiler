@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/material_originos_qs_vd_cell_off"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="top_arrow" android:animation="@drawable/material_originos_qs_ic_cell_off__0" />
+    <target android:name="bottom_arrow" android:animation="@drawable/material_originos_qs_ic_cell_off__1" />
+    <target android:name="arrow_group" android:animation="@drawable/material_originos_qs_ic_cell_off__2" />
+</animated-vector>
+

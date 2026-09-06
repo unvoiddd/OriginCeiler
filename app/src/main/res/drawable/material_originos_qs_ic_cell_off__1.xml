@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set android:ordering="together"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <objectAnimator android:interpolator="@anim/spring_fast_spatial" android:duration="350" android:valueFrom="4" android:valueTo="0" android:propertyName="translateY" />
+</set>
+

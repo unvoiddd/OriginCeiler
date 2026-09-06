@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorOnPrimary">@android:color/system_on_primary_dark</color>
+    <color name="colorOnSurface">@android:color/system_on_surface_dark</color>
+    <color name="colorOnSurfaceVariant">@android:color/system_on_surface_variant_dark</color>
+    <color name="colorPrimary">@android:color/system_primary_dark</color>
+    <color name="surface_effect_1_color">@android:color/system_surface_container_high_dark</color>
+</resources>

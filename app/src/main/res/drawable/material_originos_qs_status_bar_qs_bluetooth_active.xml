@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector android:drawable="@drawable/material_originos_qs_vd_bluetooth_on"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <target android:name="step1" android:animation="@drawable/material_originos_qs_ic_bluetooth_on__0" />
+    <target android:name="step2" android:animation="@drawable/material_originos_qs_ic_bluetooth_on__1" />
+    <target android:name="step3" android:animation="@drawable/material_originos_qs_ic_bluetooth_on__2" />
+    <target android:name="dot" android:animation="@drawable/material_originos_qs_ic_bluetooth_on__3" />
+</animated-vector>
+

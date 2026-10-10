@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,14 +30,27 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.graphics.BitmapFactory
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.TouchApp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme as materialDarkColorScheme
+import androidx.compose.material3.lightColorScheme as materialLightColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,29 +59,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.delay
+import java.util.zip.ZipInputStream
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownArrowEndAction
 import top.yukonga.miuix.kmp.basic.DropdownImpl
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.HsvHueSlider
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Slider
-import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -90,25 +101,33 @@ class MainActivity : ComponentActivity() {
             }
             val systemColors = platformDynamicColors(dark)
             val defaultColors = if (dark) darkColorScheme() else lightColorScheme()
-            val colors = if (state.monetColors) {
-                systemColors
+            val colors = if (state.monetColors) systemColors else defaultColors
+            val density = LocalDensity.current
+            val context = LocalContext.current
+            val appColors = if (state.monetColors && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } else if (dark) {
+                materialDarkColorScheme(
+                    primary = Color(0xFF2785FF), onPrimary = Color.White,
+                    primaryContainer = Color(0xFF223E63), onPrimaryContainer = Color(0xFFD5E5FF),
+                    background = Color(0xFF171717), surface = Color(0xFF171717),
+                    surfaceContainer = Color(0xFF202020), onSurface = Color(0xE6FFFFFF),
+                    onSurfaceVariant = Color(0xA6FFFFFF), outlineVariant = Color(0x26FFFFFF)
+                )
             } else {
-                systemColors.copy(
-                    primary = defaultColors.primary,
-                    onPrimary = defaultColors.onPrimary,
-                    primaryVariant = defaultColors.primaryVariant,
-                    onPrimaryVariant = defaultColors.onPrimaryVariant,
-                    primaryContainer = defaultColors.primaryContainer,
-                    onPrimaryContainer = defaultColors.onPrimaryContainer,
-                    sliderKeyPoint = defaultColors.sliderKeyPoint,
-                    sliderKeyPointForeground = defaultColors.sliderKeyPointForeground
+                materialLightColorScheme(
+                    primary = Color(0xFF0061CC), onPrimary = Color.White,
+                    primaryContainer = Color(0xFFD5E5FF), onPrimaryContainer = Color(0xFF001B3D),
+                    background = Color(0xFFF5F5F5), surface = Color(0xFFF5F5F5),
+                    surfaceContainer = Color.White
                 )
             }
-            val density = LocalDensity.current
             val scale = (state.uiScale / 100f).coerceIn(0.8f, 1.25f)
             CompositionLocalProvider(LocalDensity provides Density(density.density * scale, density.fontScale * scale)) {
                 MiuixTheme(colors = colors) {
-                    OriginIconsApp(state, model)
+                    MaterialTheme(colorScheme = appColors) {
+                        OriginIconsApp(state, model)
+                    }
                 }
             }
         }
@@ -117,7 +136,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun OriginIconsApp(state: UiState, model: MainViewModel) {
-    Scaffold(modifier = Modifier.fillMaxSize(), containerColor = MiuixTheme.colorScheme.background) {
+    Scaffold(modifier = Modifier.fillMaxSize(), containerColor = OriginBgDark) {
         Box(modifier = Modifier.fillMaxSize()) {
             OriginToolboxNavigation(state, model)
             OverlayDialog(
@@ -126,9 +145,12 @@ private fun OriginIconsApp(state: UiState, model: MainViewModel) {
                 summary = "Grant root access before using OriginCeiler. Apply icon packs while Minimalistic, Delicate, or another system icon style is active.",
                 onDismissRequest = null
             ) {
-                Button(onClick = model::acceptIntro, modifier = Modifier.fillMaxWidth()) {
-                    Text("Grant root access")
-                }
+                OriginButton(
+                    text = "Grant root access",
+                    onClick = model::acceptIntro,
+                    modifier = Modifier.fillMaxWidth(),
+                    primary = true
+                )
             }
         }
     }
@@ -137,8 +159,8 @@ private fun OriginIconsApp(state: UiState, model: MainViewModel) {
 @Composable
 internal fun IconPackApplyContainer(state: UiState, model: MainViewModel) {
     var showPopup by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Card(modifier = Modifier.fillMaxWidth(), insideMargin = PaddingValues(18.dp)) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OriginCard(modifier = Modifier.fillMaxWidth(), insidePadding = PaddingValues(18.dp)) {
             val preview = state.coverage?.preview.orEmpty()
             if (preview.isNotEmpty()) {
                 LazyRow(
@@ -146,7 +168,7 @@ internal fun IconPackApplyContainer(state: UiState, model: MainViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     items(preview.take(8)) { drawable ->
-                        DrawableImage(drawable, null, Modifier.size(58.dp).clip(RoundedCornerShape(15.dp)))
+                        DrawableImage(drawable, null, Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)))
                     }
                 }
                 Spacer(Modifier.height(18.dp))
@@ -158,11 +180,11 @@ internal fun IconPackApplyContainer(state: UiState, model: MainViewModel) {
                 SelectedIconPackIcon(state, Modifier.size(36.dp))
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Iconpack", style = MiuixTheme.textStyles.body1, fontWeight = FontWeight.Medium)
+                    Text("Iconpack", color = OriginTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(2.dp))
-                    Text(selectedIconPackName(state), color = MiuixTheme.colorScheme.onSurfaceVariantSummary, style = MiuixTheme.textStyles.footnote1)
+                    Text(selectedIconPackName(state), color = OriginTextSecondary, fontSize = 13.sp)
                 }
-                DropdownArrowEndAction(MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                DropdownArrowEndAction(OriginTextSecondary)
             }
             if (state.source == IconSource.PALETTE) {
                 Spacer(Modifier.height(18.dp))
@@ -175,17 +197,26 @@ internal fun IconPackApplyContainer(state: UiState, model: MainViewModel) {
             Spacer(Modifier.height(8.dp))
             ToggleRow(
                 "Auto-colour missing icons",
-                "Convert missing app icons to monochrome before applying the pack colour",
+                "Colour missing app icons using the average icon pack colour",
                 state.autoRecolor,
                 model::setAutoRecolor
             )
-            ToggleRow(
-                "Full APK to ITZ conversion",
-                "Convert the entire APK, including apps that are not installed",
-                state.fullConversion,
-                model::setFullConversion
-            )
-            Spacer(Modifier.height(12.dp))
+            if (state.source == IconSource.PACK) {
+                ToggleRow(
+                    "Replace icon backgrounds",
+                    "Place adaptive icon foregrounds on the pack's iconmask.png when available",
+                    state.replaceIconBackground,
+                    model::setReplaceIconBackground
+                )
+            } else {
+                ToggleRow(
+                    "Full APK to ITZ conversion",
+                    "Convert the entire APK, including apps that are not installed",
+                    state.fullConversion,
+                    model::setFullConversion
+                )
+            }
+            Spacer(Modifier.height(14.dp))
             ActionButtonsSection(state, model::apply, model::restartLauncher)
         }
         IconPackPopup(showPopup, state, model) { showPopup = false }
@@ -212,7 +243,7 @@ internal fun IconPackPopup(show: Boolean, state: UiState, model: MainViewModel, 
             DropdownImpl(
                 item = DropdownItem(
                     text = "System",
-                    icon = { modifier -> Icon(Icons.Default.Home, null, modifier, tint = MiuixTheme.colorScheme.onSurfaceContainer) }
+                    icon = { modifier -> Icon(Icons.Default.Home, null, modifier, tint = OriginAccent) }
                 ),
                 optionSize = optionCount,
                 isSelected = state.source == IconSource.SYSTEM,
@@ -238,7 +269,7 @@ internal fun IconPackPopup(show: Boolean, state: UiState, model: MainViewModel, 
             DropdownImpl(
                 item = DropdownItem(
                     text = "AOSP themed",
-                    icon = { modifier -> Icon(Icons.Default.AutoAwesome, null, modifier, tint = MiuixTheme.colorScheme.primary) }
+                    icon = { modifier -> Icon(Icons.Default.AutoAwesome, null, modifier, tint = OriginAccent) }
                 ),
                 optionSize = optionCount,
                 isSelected = state.source == IconSource.AOSP_THEMED,
@@ -270,18 +301,18 @@ internal fun IconPackPopup(show: Boolean, state: UiState, model: MainViewModel, 
 @Composable
 internal fun SelectedIconPackIcon(state: UiState, modifier: Modifier) {
     when (state.source) {
-        IconSource.SYSTEM -> Icon(Icons.Default.Home, "System", modifier, tint = MiuixTheme.colorScheme.onSurfaceContainer)
+        IconSource.SYSTEM -> Icon(Icons.Default.Home, "System", modifier, tint = OriginAccent)
         IconSource.PALETTE -> Icon(Icons.Default.Palette, "Custom palette", modifier, tint = paletteColor(state.paletteHue))
-        IconSource.AOSP_THEMED -> Icon(Icons.Default.AutoAwesome, "AOSP themed", modifier, tint = MiuixTheme.colorScheme.primary)
+        IconSource.AOSP_THEMED -> Icon(Icons.Default.AutoAwesome, "AOSP themed", modifier, tint = OriginAccent)
         IconSource.PACK -> state.selected?.let { DrawableImage(it.icon, it.label, modifier.clip(RoundedCornerShape(9.dp))) }
-            ?: Icon(Icons.Default.Home, "Icon pack", modifier, tint = MiuixTheme.colorScheme.onSurfaceContainer)
+            ?: Icon(Icons.Default.Home, "Icon pack", modifier, tint = OriginAccent)
     }
 }
 
 @Composable
 internal fun PaletteEditorContent(state: UiState, model: MainViewModel) {
     Column {
-        Text("Colour", style = MiuixTheme.textStyles.title4, fontWeight = FontWeight.SemiBold)
+        Text("Colour", color = OriginTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(14.dp))
         HsvHueSlider(
             currentHue = state.paletteHue,
@@ -289,20 +320,21 @@ internal fun PaletteEditorContent(state: UiState, model: MainViewModel) {
         )
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.TouchApp, null, Modifier.size(22.dp), tint = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+            Icon(Icons.Outlined.TouchApp, null, Modifier.size(22.dp), tint = OriginTextSecondary)
             Spacer(Modifier.width(10.dp))
-            Text("Shade", style = MiuixTheme.textStyles.body1)
+            Text("Shade", color = OriginTextPrimary, fontSize = 15.sp)
         }
         Spacer(Modifier.height(8.dp))
-        Slider(
+        OriginSlider(
             value = state.paletteTone,
             onValueChange = model::setPaletteTone,
+            valueRange = 0f..1f,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
             "Dark details stay dark while the selected colour is blended over each monochrome icon.",
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            style = MiuixTheme.textStyles.footnote1
+            color = OriginTextSecondary,
+            fontSize = 12.sp
         )
     }
 }
@@ -336,7 +368,7 @@ private val aospMaterialColours = listOf(
 @Composable
 internal fun AospThemedEditorContent(state: UiState, model: MainViewModel) {
     Column {
-        Text("Colour", style = MiuixTheme.textStyles.title4, fontWeight = FontWeight.SemiBold)
+        Text("Colour", color = OriginTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(14.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(aospMaterialColours) { colour ->
@@ -344,21 +376,21 @@ internal fun AospThemedEditorContent(state: UiState, model: MainViewModel) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .border(if (selected) 3.dp else 1.dp, if (selected) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.outline, CircleShape)
+                        .border(if (selected) 3.dp else 1.dp, if (selected) OriginAccent else OriginCardStroke, CircleShape)
                         .padding(4.dp)
                         .clip(CircleShape)
-                        .background(if (colour.value == null) MiuixTheme.colorScheme.surfaceContainer else Color(colour.value))
+                        .background(if (colour.value == null) OriginCardBg else Color(colour.value))
                         .clickable { model.setAospTint(colour.value) },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (colour.value == null) Text("×", style = MiuixTheme.textStyles.title3, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                    if (colour.value == null) Text("×", fontSize = 18.sp, color = OriginTextSecondary)
                 }
             }
         }
         Spacer(Modifier.height(20.dp))
-        Text("Icon size", style = MiuixTheme.textStyles.body1)
+        Text("Icon size", color = OriginTextPrimary, fontSize = 15.sp)
         Spacer(Modifier.height(8.dp))
-        Slider(
+        OriginSlider(
             value = state.aospScale,
             onValueChange = model::setAospScale,
             valueRange = 0.65f..1.18f,
@@ -370,15 +402,18 @@ internal fun AospThemedEditorContent(state: UiState, model: MainViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Invert colours", style = MiuixTheme.textStyles.body1)
+                Text("Invert colours", color = OriginTextPrimary, fontSize = 15.sp)
                 Spacer(Modifier.height(2.dp))
                 Text(
                     "Use a dark background and a light glyph before the colour filter is applied.",
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote1
+                    color = OriginTextSecondary,
+                    fontSize = 12.sp
                 )
             }
-            Switch(checked = state.aospInverted, onCheckedChange = model::setAospInverted)
+            OriginSwitch(
+                checked = state.aospInverted,
+                onCheckedChange = model::setAospInverted
+            )
         }
     }
 }
@@ -389,28 +424,32 @@ internal fun ActionButtonsSection(state: UiState, apply: () -> Unit, restart: ()
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Button(
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OriginButton(
+                text = if (state.applying) "Applying…" else "Apply",
                 onClick = apply,
                 enabled = !state.loading && !state.applying,
-                modifier = Modifier.fillMaxSize(),
-                minHeight = 52.dp,
-                cornerRadius = 18.dp
-            ) {
-                Text(if (state.applying) "Applying…" else "Apply")
-            }
+                modifier = Modifier.fillMaxWidth(),
+                primary = true
+            )
             if (state.applying) {
                 LinearProgressIndicator(
-                    progress = state.progress,
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-                    height = 4.dp
+                    progress = { state.progress },
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)),
+                    color = Color.White,
+                    trackColor = Color.Transparent
                 )
             }
         }
-        Button(onClick = restart, enabled = !state.applying, modifier = Modifier.fillMaxWidth(), minHeight = 50.dp) {
-            Text("Restart Launcher")
-        }
-        Button(
+        OriginButton(
+            text = "Restart Launcher",
+            onClick = restart,
+            enabled = !state.applying,
+            modifier = Modifier.fillMaxWidth(),
+            primary = false
+        )
+        OriginButton(
+            text = "Open settings",
             onClick = {
                 context.startActivity(
                     Intent().setClassName("com.bbk.launcher2", "com.bbk.launcher2.settings.iconstyle.IconStyleDeformSetting")
@@ -418,15 +457,13 @@ internal fun ActionButtonsSection(state: UiState, apply: () -> Unit, restart: ()
             },
             enabled = !state.applying,
             modifier = Modifier.fillMaxWidth(),
-            minHeight = 50.dp
-        ) {
-            Text("Open settings")
-        }
+            primary = false
+        )
         Text(
             "If icons are not applied, switch to Minimalistic or Delicate and all icons will be applied.",
-            modifier = Modifier.padding(horizontal = 10.dp),
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            style = MiuixTheme.textStyles.footnote1
+            modifier = Modifier.padding(horizontal = 6.dp),
+            color = OriginTextSecondary,
+            fontSize = 12.sp
         )
     }
 }
@@ -435,23 +472,32 @@ internal fun ActionButtonsSection(state: UiState, apply: () -> Unit, restart: ()
 internal fun ControlCenterIconPackSelector(state: UiState, model: MainViewModel) {
     var showPopup by remember { mutableStateOf(false) }
     val names = listOf("Default", "iOS")
-    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
-        Card(onClick = { showPopup = true }, modifier = Modifier.fillMaxWidth(), insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        OriginCard(
+            onClick = { showPopup = true },
+            modifier = Modifier.fillMaxWidth(),
+            insidePadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (state.controlCenterIconPack == 0) Icons.Default.Tune else Icons.Default.AutoAwesome, null, Modifier.size(24.dp), tint = MiuixTheme.colorScheme.primary)
+                Icon(
+                    if (state.controlCenterIconPack == 0) Icons.Default.Tune else Icons.Default.AutoAwesome,
+                    null,
+                    Modifier.size(24.dp),
+                    tint = OriginAccent
+                )
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Control Center custom icons", style = MiuixTheme.textStyles.body1, fontWeight = FontWeight.Medium)
-                    Text(names.getOrElse(state.controlCenterIconPack) { names[0] }, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, style = MiuixTheme.textStyles.footnote1)
+                    Text("Control Center custom icons", color = OriginTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(names.getOrElse(state.controlCenterIconPack) { names[0] }, color = OriginTextSecondary, fontSize = 13.sp)
                 }
-                DropdownArrowEndAction(MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                DropdownArrowEndAction(OriginTextSecondary)
             }
         }
         OverlayListPopup(show = showPopup, alignment = PopupPositionProvider.Align.TopStart, maxHeight = 220.dp, onDismissRequest = { showPopup = false }) {
             ListPopupColumn {
                 names.forEachIndexed { pack, name ->
                     DropdownImpl(
-                        item = DropdownItem(text = name, icon = { modifier -> Icon(if (pack == 0) Icons.Default.Tune else Icons.Default.AutoAwesome, null, modifier, tint = MiuixTheme.colorScheme.primary) }),
+                        item = DropdownItem(text = name, icon = { modifier -> Icon(if (pack == 0) Icons.Default.Tune else Icons.Default.AutoAwesome, null, modifier, tint = OriginAccent) }),
                         optionSize = names.size,
                         isSelected = state.controlCenterIconPack == pack,
                         index = pack,
@@ -467,18 +513,249 @@ internal fun ControlCenterIconPackSelector(state: UiState, model: MainViewModel)
 }
 
 @Composable
+internal fun StatusbarWifiPackSelector(state: UiState, model: MainViewModel) {
+    var showPopup by remember { mutableStateOf(false) }
+    val selectedName = wifiPackName(state.statusbarWifiPack)
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        OriginCard(
+            onClick = { showPopup = true },
+            modifier = Modifier.fillMaxWidth(),
+            insidePadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (state.statusbarWifiPack == 0) Icon(Icons.Default.Wifi, null, Modifier.size(24.dp), tint = OriginAccent)
+                else WifiPackPreview(state.statusbarWifiPack, Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Wi-Fi icon pack", color = OriginTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(selectedName, color = OriginTextSecondary, fontSize = 13.sp)
+                }
+                DropdownArrowEndAction(OriginTextSecondary)
+            }
+        }
+        OverlayListPopup(show = showPopup, alignment = PopupPositionProvider.Align.TopStart, maxHeight = 460.dp, onDismissRequest = { showPopup = false }) {
+            ListPopupColumn {
+                (0..18).forEach { pack ->
+                    val name = wifiPackName(pack)
+                    DropdownImpl(
+                        item = DropdownItem(text = name, icon = { modifier -> if (pack == 0) Icon(Icons.Default.Wifi, null, modifier, tint = OriginAccent) else WifiPackPreview(pack, modifier) }),
+                        optionSize = 19,
+                        isSelected = state.statusbarWifiPack == pack,
+                        index = pack,
+                        onSelectedIndexChange = {
+                            model.setStatusbarWifiPack(pack)
+                            showPopup = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WifiPackPreview(pack: Int, modifier: Modifier) {
+    val context = LocalContext.current
+    var level by remember(pack) { mutableStateOf(0) }
+    LaunchedEffect(pack) {
+        while (true) {
+            delay(550)
+            level = (level + 1) % 5
+        }
+    }
+    val bitmap = remember(pack, level) { loadWifiPreview(context, pack, level) }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier,
+            colorFilter = ColorFilter.tint(OriginTextPrimary)
+        )
+    } else {
+        Icon(Icons.Default.Wifi, null, modifier, tint = OriginAccent)
+    }
+}
+
+private fun loadWifiPreview(context: android.content.Context, pack: Int, level: Int): Bitmap? = runCatching {
+    val path = "WIFI$pack/${level.coerceIn(0, 4)}.png"
+    val bytes = context.assets.open("statusbar_wifi_packs.zip").use { input ->
+        ZipInputStream(input).use { zip ->
+            generateSequence { zip.nextEntry }.firstOrNull { it.name == path }?.let { zip.readBytes() }
+        }
+    } ?: return null
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}.getOrNull()
+
+private fun wifiPackName(pack: Int) = listOf(
+    "Default", "Shiyang (时央)", "Stacked bars", "Solid drop", "Rounded arcs", "Router", "Rounded shield", "Angular", "Dot matrix", "Minimal arcs", "Orbit", "Solid wedge", "Compact wedge", "Soft wedge", "Wide wedge", "Leaf", "Bold arcs", "Ribbon", "iOS"
+).getOrElse(pack) { "Default" }
+
+@Composable
+internal fun StatusbarBatteryPackSelector(state: UiState, model: MainViewModel) {
+    var showPopup by remember { mutableStateOf(false) }
+    val selectedName = batteryPackName(state.statusbarBatteryPack)
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        OriginCard(
+            onClick = { showPopup = true },
+            modifier = Modifier.fillMaxWidth(),
+            insidePadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (state.statusbarBatteryPack == 0) Icon(Icons.Default.BatteryFull, null, Modifier.size(24.dp), tint = OriginAccent)
+                else BatteryPackPreview(state.statusbarBatteryPack, Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Battery icon pack", color = OriginTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(selectedName, color = OriginTextSecondary, fontSize = 13.sp)
+                }
+                DropdownArrowEndAction(OriginTextSecondary)
+            }
+        }
+        OverlayListPopup(show = showPopup, alignment = PopupPositionProvider.Align.TopStart, maxHeight = 220.dp, onDismissRequest = { showPopup = false }) {
+            ListPopupColumn {
+                (0..2).forEach { pack ->
+                    DropdownImpl(
+                        item = DropdownItem(text = batteryPackName(pack), icon = { modifier -> if (pack == 0) Icon(Icons.Default.BatteryFull, null, modifier, tint = OriginAccent) else BatteryPackPreview(pack, modifier) }),
+                        optionSize = 3,
+                        isSelected = state.statusbarBatteryPack == pack,
+                        index = pack,
+                        onSelectedIndexChange = {
+                            model.setStatusbarBatteryPack(pack)
+                            showPopup = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryPackPreview(pack: Int, modifier: Modifier) {
+    val context = LocalContext.current
+    var level by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(400)
+            level = (level + 1) % 20
+        }
+    }
+    val bitmap = remember(pack, level) { loadBatteryPreview(context, pack, level) }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier,
+            colorFilter = ColorFilter.tint(OriginTextPrimary)
+        )
+    } else {
+        Icon(Icons.Default.BatteryFull, null, modifier, tint = OriginAccent)
+    }
+}
+
+private fun loadBatteryPreview(context: android.content.Context, pack: Int, level: Int): Bitmap? = runCatching {
+    val path = "PACK$pack/vivo_battery_20_${level.coerceIn(0, 19).toString().padStart(2, '0')}_white.png"
+    val bytes = context.assets.open("statusbar_battery_packs.zip").use { input ->
+        ZipInputStream(input).use { zip ->
+            generateSequence { zip.nextEntry }.firstOrNull { it.name == path }?.let { zip.readBytes() }
+        }
+    } ?: return null
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}.getOrNull()
+
+private fun batteryPackName(pack: Int) = listOf("Default", "Shiyang (时央)", "iOS").getOrElse(pack) { "Default" }
+
+@Composable
+internal fun StatusbarMobilePackSelector(state: UiState, model: MainViewModel) {
+    var showPopup by remember { mutableStateOf(false) }
+    val selectedName = mobilePackName(state.statusbarMobilePack)
+    Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        OriginCard(
+            onClick = { showPopup = true },
+            modifier = Modifier.fillMaxWidth(),
+            insidePadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (state.statusbarMobilePack == 0) Icon(Icons.Default.SignalCellularAlt, null, Modifier.size(24.dp), tint = OriginAccent)
+                else MobilePackPreview(Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("LTE signal icon pack", color = OriginTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(selectedName, color = OriginTextSecondary, fontSize = 13.sp)
+                }
+                DropdownArrowEndAction(OriginTextSecondary)
+            }
+        }
+        OverlayListPopup(show = showPopup, alignment = PopupPositionProvider.Align.TopStart, maxHeight = 220.dp, onDismissRequest = { showPopup = false }) {
+            ListPopupColumn {
+                (0..1).forEach { pack ->
+                    DropdownImpl(
+                        item = DropdownItem(text = mobilePackName(pack), icon = { modifier -> if (pack == 0) Icon(Icons.Default.SignalCellularAlt, null, modifier, tint = OriginAccent) else MobilePackPreview(modifier) }),
+                        optionSize = 2,
+                        isSelected = state.statusbarMobilePack == pack,
+                        index = pack,
+                        onSelectedIndexChange = {
+                            model.setStatusbarMobilePack(pack)
+                            showPopup = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobilePackPreview(modifier: Modifier) {
+    val context = LocalContext.current
+    var level by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500)
+            level = (level + 1) % 5
+        }
+    }
+    val bitmap = remember(level) { loadMobilePreview(context, level) }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier,
+            colorFilter = ColorFilter.tint(OriginTextPrimary)
+        )
+    } else {
+        Icon(Icons.Default.SignalCellularAlt, null, modifier, tint = OriginAccent)
+    }
+}
+
+private fun loadMobilePreview(context: android.content.Context, level: Int): Bitmap? = runCatching {
+    val path = "PACK1/vivo_signal_strength_${level.coerceIn(0, 4)}.png"
+    val bytes = context.assets.open("statusbar_mobile_packs.zip").use { input ->
+        ZipInputStream(input).use { zip ->
+            generateSequence { zip.nextEntry }.firstOrNull { it.name == path }?.let { zip.readBytes() }
+        }
+    } ?: return null
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}.getOrNull()
+
+private fun mobilePackName(pack: Int) = listOf("Default", "Shiyang (时央)").getOrElse(pack) { "Default" }
+
+@Composable
 internal fun ToggleRow(title: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(horizontal = 18.dp, vertical = 15.dp),
+        modifier = modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MiuixTheme.textStyles.body1, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(3.dp))
-            Text(description, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, style = MiuixTheme.textStyles.footnote1)
+            Text(title, color = OriginTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(2.dp))
+            Text(description, color = OriginTextSecondary, fontSize = 12.sp)
         }
         Spacer(Modifier.width(14.dp))
-        Switch(checked = checked, onCheckedChange = onChange)
+        OriginSwitch(
+            checked = checked,
+            onCheckedChange = onChange
+        )
     }
 }
 

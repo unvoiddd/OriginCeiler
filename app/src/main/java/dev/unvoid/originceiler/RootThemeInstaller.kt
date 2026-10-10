@@ -22,6 +22,29 @@ class RootThemeInstaller(private val context: Context) {
         execute("sh '${script.absolutePath}' '${result.stage.absolutePath}' '${template.absolutePath}' '$tint'")
     }.getOrElse { RootResult(false, it.message ?: "Unable to prepare theme template") }
 
+    fun applyIconPack(packageName: String, autoRecolor: Boolean, replaceBackground: Boolean): RootResult {
+        if (!packageName.matches(Regex("[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+"))) {
+            return RootResult(false, "Invalid icon pack package")
+        }
+        if (runCatching { context.packageManager.getApplicationInfo(packageName, 0) }.isFailure) {
+            return RootResult(false, "Icon pack is not installed")
+        }
+        return execute("settings put global ${LauncherIconPack.SETTING_PACK} '$packageName'; " +
+            "settings put global ${LauncherIconPack.SETTING_AUTO_RECOLOR} ${if (autoRecolor) 1 else 0}; " +
+            "settings put global ${LauncherIconPack.SETTING_REPLACE_BACKGROUND} ${if (replaceBackground) 1 else 0}; " +
+            "settings put global originicons_themed_launcher_icons 0; " +
+            "settings put system themed_icon_enabled 0; settings put secure themed_icon_enabled 0; " +
+            "rm -rf /data/bbkcore/theme/icons; " +
+            "settings put system key_system_color_change \$(date +%s); " +
+            "am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+    }
+
+    fun setLiveIconPackOptions(autoRecolor: Boolean, replaceBackground: Boolean): RootResult = execute(
+        "settings put global ${LauncherIconPack.SETTING_AUTO_RECOLOR} ${if (autoRecolor) 1 else 0}; " +
+            "settings put global ${LauncherIconPack.SETTING_REPLACE_BACKGROUND} ${if (replaceBackground) 1 else 0}; " +
+            "am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null"
+    )
+
     fun restartLauncher(): RootResult {
         return execute("am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
@@ -32,14 +55,14 @@ class RootThemeInstaller(private val context: Context) {
             "com.android.systemui" -> "killall com.android.systemui 2>/dev/null || true"
             "com.vivo.systemuiplugin" -> "am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true"
             "com.bbk.launcher2" -> "am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null"
-            "com.vivo.ai.copilot" -> "am force-stop com.vivo.ai.copilot; am force-stop com.vivo.launchercopilot; killall com.vivo.ai.copilot 2>/dev/null || true; killall com.vivo.launchercopilot 2>/dev/null || true"
+            "com.vivo.ai.copilot" -> blueLmRestartCommand()
             else -> "am force-stop '$packageName'"
         }
         return execute(command)
     }
 
     fun resetIcons(): RootResult {
-        return execute("rm -rf /data/bbkcore/theme/icons; settings delete global originicons_pixel_search_aosp_tint; restorecon -RF /data/bbkcore/theme 2>/dev/null || true; am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+        return execute("rm -rf /data/bbkcore/theme/icons; settings delete global ${LauncherIconPack.SETTING_PACK}; settings delete global ${LauncherIconPack.SETTING_AUTO_RECOLOR}; settings delete global ${LauncherIconPack.SETTING_REPLACE_BACKGROUND}; settings delete global originicons_pixel_search_aosp_tint; restorecon -RF /data/bbkcore/theme 2>/dev/null || true; am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
     fun setCircleToSearch(enabled: Boolean): RootResult {
@@ -54,6 +77,42 @@ class RootThemeInstaller(private val context: Context) {
 
     fun setLauncherIconSize(value: Int): RootResult {
         return execute("settings put global originroottoolbox_launcher_icon_size ${value.coerceIn(70, 150)}")
+    }
+
+    fun setStatusBarBatteryScale(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_battery_scale ${value.coerceIn(50, 150)}")
+    }
+
+    fun setStatusBarBatteryX(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_battery_x ${value.coerceIn(-150, 150)}")
+    }
+
+    fun setStatusBarBatteryTextScale(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_battery_text_scale ${value.coerceIn(50, 150)}")
+    }
+
+    fun setStatusBarBatteryTextWeight(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_battery_text_weight ${value.coerceIn(100, 900)}")
+    }
+
+    fun setStatusBarWifiScale(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_wifi_scale ${value.coerceIn(50, 150)}")
+    }
+
+    fun setStatusBarWifiX(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_wifi_x ${value.coerceIn(-150, 150)}")
+    }
+
+    fun setStatusBarClockScale(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_clock_scale ${value.coerceIn(50, 150)}")
+    }
+
+    fun setStatusBarClockX(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_clock_x ${value.coerceIn(-150, 150)}")
+    }
+
+    fun setStatusBarSystemIconsScale(value: Int): RootResult {
+        return execute("settings put global originroottoolbox_statusbar_system_icons_scale ${value.coerceIn(50, 150)}")
     }
 
     fun setRestoreGoogleAssistant(enabled: Boolean): RootResult {
@@ -92,6 +151,37 @@ class RootThemeInstaller(private val context: Context) {
         val value = if (enabled) 1 else 0
         return execute("settings put global originicons_power_button_gemini $value; am force-stop com.vivo.ai.copilot; killall com.vivo.ai.copilot 2>/dev/null || true; am force-stop com.vivo.launchercopilot; killall com.vivo.launchercopilot 2>/dev/null || true")
     }
+
+    fun setBlueLmRussian(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        val recognition = if (enabled) enableWhisperRecognitionCommand() else disableWhisperRecognitionCommand()
+        return execute("settings put global ${BlueLmRussianHook.SETTING_ENABLED} $value; $recognition; ${blueLmRestartCommand()}")
+    }
+
+    fun restoreWhisperRecognitionIfEnabled(): RootResult = execute(
+        "if [ \"\$(settings get global ${BlueLmRussianHook.SETTING_ENABLED})\" = \"1\" ]; then ${enableWhisperRecognitionCommand()}; fi"
+    )
+
+    private fun blueLmRestartCommand(): String = BlueLmRussianHook.PACKAGES.joinToString("; ") {
+        "am force-stop $it; killall $it 2>/dev/null || true"
+    }
+
+    private fun enableWhisperRecognitionCommand(): String =
+        "CURRENT=\$(settings get secure voice_recognition_service); " +
+            "if [ \"\$(settings get global originroottoolbox_voice_recognition_backup_active)\" != \"1\" ] && [ \"\$CURRENT\" != \"$WHISPER_RECOGNITION_COMPONENT\" ]; then " +
+            "[ \"\$CURRENT\" = \"null\" ] && CURRENT=__null__; " +
+            "settings put global originroottoolbox_voice_recognition_backup \"\$CURRENT\"; " +
+            "settings put global originroottoolbox_voice_recognition_backup_active 1; fi; " +
+            "pm grant $MODULE_PACKAGE android.permission.RECORD_AUDIO 2>/dev/null || true; " +
+            "settings put secure voice_recognition_service $WHISPER_RECOGNITION_COMPONENT"
+
+    private fun disableWhisperRecognitionCommand(): String =
+        "if [ \"\$(settings get global originroottoolbox_voice_recognition_backup_active)\" = \"1\" ]; then " +
+            "PREVIOUS=\$(settings get global originroottoolbox_voice_recognition_backup); " +
+            "if [ \"\$PREVIOUS\" = \"__null__\" ] || [ \"\$PREVIOUS\" = \"null\" ]; then settings delete secure voice_recognition_service; " +
+            "else settings put secure voice_recognition_service \"\$PREVIOUS\"; fi; fi; " +
+            "settings delete global originroottoolbox_voice_recognition_backup; " +
+            "settings delete global originroottoolbox_voice_recognition_backup_active"
 
     fun setHideVivoServiceError(enabled: Boolean): RootResult {
         val value = if (enabled) 1 else 0
@@ -145,11 +235,6 @@ class RootThemeInstaller(private val context: Context) {
     fun setMaterialOriginOsLockscreen(enabled: Boolean): RootResult {
         val value = if (enabled) 1 else 0
         return execute("settings put global ${MaterialOriginOsLockscreenHook.SETTING_ENABLED} $value; am force-stop com.vivo.systemuiplugin; am force-stop com.vivo.fingerprintui; am force-stop com.vivo.faceui; killall com.android.systemui 2>/dev/null || true")
-    }
-
-    fun setMaterialBackGesture(enabled: Boolean): RootResult {
-        val value = if (enabled) 1 else 0
-        return execute("settings put global ${MaterialBackGestureHook.SETTING_ENABLED} $value; am force-stop com.vivo.upslide; pkill -f com.vivo.upslide 2>/dev/null || true")
     }
 
     fun setSettingsContainerGap(value: Int): RootResult {
@@ -222,10 +307,49 @@ class RootThemeInstaller(private val context: Context) {
             ShadeLiquidGlassHook.SETTING_TINT,
             ShadeLiquidGlassHook.SETTING_EDGE,
             ShadeLiquidGlassHook.SETTING_QUALITY,
-            ShadeLiquidGlassHook.SETTING_CC_RADIUS
+            ShadeLiquidGlassHook.SETTING_CC_RADIUS,
+            ShadeLiquidGlassHook.SETTING_TILES_BLUR,
+            ShadeLiquidGlassHook.SETTING_TILES_TINT,
+            ShadeLiquidGlassHook.SETTING_PLAYER_BLUR,
+            ShadeLiquidGlassHook.SETTING_PLAYER_TINT,
+            ShadeLiquidGlassHook.SETTING_SLIDER_BLUR,
+            ShadeLiquidGlassHook.SETTING_SLIDER_TINT,
+            ShadeLiquidGlassHook.SETTING_BUTTON_BLUR,
+            ShadeLiquidGlassHook.SETTING_BUTTON_TINT
         )
         if (key !in allowed) return RootResult(false, "Unsupported Liquid Glass setting")
         return execute("settings put global $key $value")
+    }
+
+    fun setNativeBlurTuner(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        return execute("settings put global ${NativeBlurHook.SETTING_ENABLED} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
+    }
+
+    fun setNativeBlurParameter(key: String, value: Int): RootResult {
+        val allowed = setOf(
+            NativeBlurHook.SETTING_CONTROL_CENTER_BLUR,
+            NativeBlurHook.SETTING_NOTIFICATIONS_BLUR,
+            NativeBlurHook.SETTING_TILES_BLUR,
+            NativeBlurHook.SETTING_TILES_SAT,
+            NativeBlurHook.SETTING_SLIDERS_BLUR,
+            NativeBlurHook.SETTING_SLIDERS_SAT,
+            NativeBlurHook.SETTING_BUTTONS_BLUR,
+            NativeBlurHook.SETTING_BUTTONS_SAT,
+            NativeBlurHook.SETTING_PLAYER_BLUR,
+            NativeBlurHook.SETTING_PLAYER_SAT,
+            NativeBlurHook.SETTING_OTHER_BLUR,
+            NativeBlurHook.SETTING_OTHER_SAT,
+            NativeBlurHook.SETTING_PANEL_BLUR,
+            NativeBlurHook.SETTING_PANEL_DARKEN
+        )
+        if (key !in allowed) return RootResult(false, "Unsupported native blur setting")
+        return execute("settings put global $key $value")
+    }
+
+    fun setNativeBlurPanelScaleDisabled(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        return execute("settings put global ${NativeBlurHook.SETTING_DISABLE_PANEL_SCALE} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
     }
 
     fun migrateStatusbarPackIndexes(): RootResult {
@@ -240,7 +364,7 @@ class RootThemeInstaller(private val context: Context) {
 
     fun setNativeAospThemedIcons(enabled: Boolean): RootResult {
         val value = if (enabled) 1 else 0
-        return execute("settings put global originicons_themed_launcher_icons $value; settings delete global originicons_force_monet_icons; settings put system themed_icon_enabled $value; settings put secure themed_icon_enabled $value; settings put system key_icon_color_follow_system $value; settings put system key_system_color_change \$(date +%s); am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+        return execute("settings put global originicons_themed_launcher_icons $value; settings delete global ${LauncherIconPack.SETTING_PACK}; settings delete global originicons_force_monet_icons; settings put system themed_icon_enabled $value; settings put secure themed_icon_enabled $value; settings put system key_icon_color_follow_system $value; settings put system key_system_color_change \$(date +%s); am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
     fun setMonetIconScale(value: Int): RootResult {
@@ -424,6 +548,9 @@ rm -rf "${'$'}ICONS"
 restorecon -RF "${'$'}THEME" 2>/dev/null || true
 settings put global theme_icons_style_explore 1
 settings put global originicons_themed_launcher_icons 0
+settings delete global originicons_live_icon_pack
+settings delete global originicons_live_pack_recolor
+settings delete global originicons_live_pack_background
 settings delete global originicons_force_monet_icons
 am force-stop com.bbk.launcher2
 am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null
@@ -451,5 +578,11 @@ am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/nul
 sleep 2
 echo applied
 """.trimIndent()
+
+    private companion object {
+        const val MODULE_PACKAGE = "dev.unvoid.originceiler"
+        const val WHISPER_RECOGNITION_COMPONENT =
+            "$MODULE_PACKAGE/dev.unvoid.originceiler.WhisperRecognitionService"
+    }
 
 }

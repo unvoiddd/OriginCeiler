@@ -39,6 +39,7 @@ import android.provider.Settings
 import android.service.notification.StatusBarNotification
 import android.util.TypedValue
 import android.util.Base64
+import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -78,6 +79,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
     private val launcherIconBaseScaleY = Collections.synchronizedMap(WeakHashMap<View, Float>())
     private val launcherIconObserverInstalled = AtomicBoolean(false)
     private val launcherIconInternalScale = ThreadLocal<Boolean>()
+    private var launcherIconPack: LauncherIconPack? = null
     private val aospVolumeDialogs = Collections.synchronizedMap(WeakHashMap<Any, Any>())
     private val settingsOriginalTopMargins = Collections.synchronizedMap(WeakHashMap<View, Int>())
     private val settingsOriginalHorizontalMargins = Collections.synchronizedMap(WeakHashMap<View, Pair<Int, Int>>())
@@ -119,6 +121,9 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 "com.bbk.launcher2",
                 "com.vivo.launchercopilot",
                 "com.vivo.ai.copilot",
+                "com.vivo.ai.base.copilot",
+                "com.vivo.ai.copilot.shortcut.component",
+                "com.vivo.ai.gptagent",
                 "com.vivo.upslide",
                 "com.vivo.musicwidgetmix",
                 "com.vivo.musicmixcard",
@@ -143,7 +148,11 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 .onFailure(XposedBridge::log)
             runCatching { MaterialOriginOsStatusFontHook().install() }
                 .onFailure(XposedBridge::log)
+            runCatching { StatusBarIconScaleHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
             runCatching { ShadeLiquidGlassHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { NativeBlurHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { OriginIslandLiveUpdatesHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
@@ -183,11 +192,15 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     .onFailure(XposedBridge::log)
                 runCatching { MaterialOriginOsStatusFontHook().install() }
                     .onFailure(XposedBridge::log)
+                runCatching { StatusBarIconScaleHook().install(loadPackageParam.classLoader) }
+                    .onFailure(XposedBridge::log)
                 runCatching { ShadeLiquidGlassHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
                 runCatching { OriginIslandLiveUpdatesHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
                 runCatching { hookIosLikeNotificationCenter(loadPackageParam.classLoader) }
+                    .onFailure(XposedBridge::log)
+                runCatching { NativeBlurHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
             }
             runCatching { hookExternalSettingsTheme(loadPackageParam.classLoader) }
@@ -216,6 +229,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 .onFailure(XposedBridge::log)
             runCatching { hookMonetHotseatIcons(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
+            runCatching { hookIconPackCache(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
         }
         if (loadPackageParam.packageName in setOf("com.vivo.ai.copilot", "com.vivo.launchercopilot")) {
             if (loadPackageParam.packageName == "com.vivo.ai.copilot") {
@@ -229,11 +244,13 @@ class CircleToSearchHook : IXposedHookLoadPackage {
             runCatching { hookBlueLmToasts(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
         }
+        if (loadPackageParam.packageName in BlueLmRussianHook.PACKAGES) {
+            runCatching { BlueLmRussianHook(loadPackageParam.packageName).install(loadPackageParam.classLoader) }
+                .onFailure { XposedBridge.log("OriginRootToolbox: BlueLM install failed in ${loadPackageParam.packageName}: $it") }
+        }
         val processName = runCatching { loadPackageParam.javaClass.getField("processName").get(loadPackageParam) as? String }.getOrNull()
         if (loadPackageParam.packageName == "com.vivo.upslide" || processName == "com.vivo.upslide") {
             runCatching { hookNavigationHandle(loadPackageParam.classLoader) }
-                .onFailure(XposedBridge::log)
-            runCatching { MaterialBackGestureHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
         }
         if (loadPackageParam.packageName == "com.vivo.musicwidgetmix") {
@@ -658,6 +675,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     XposedBridge.hookMethod(method, object : XC_MethodHook(Int.MAX_VALUE) {
                         override fun afterHookedMethod(param: MethodHookParam) {
                             val application = currentApplication() ?: return
+                            if (!Settings.Global.getString(application.contentResolver, LauncherIconPack.SETTING_PACK).isNullOrBlank()) return
                             if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) != 1) return
                             val original = param.args.getOrNull(drawableIndex) as? Drawable ?: return
                             val context = if (contextIndex >= 0) param.args.getOrNull(contextIndex) as? Context ?: application else application
@@ -693,6 +711,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     XposedBridge.hookMethod(method, object : XC_MethodHook(Int.MAX_VALUE) {
                         override fun afterHookedMethod(param: MethodHookParam) {
                             val application = currentApplication() ?: return
+                            if (!Settings.Global.getString(application.contentResolver, LauncherIconPack.SETTING_PACK).isNullOrBlank()) return
                             if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) != 1) return
                             val context = param.args.firstOrNull() as? Context ?: application
                             val bitmap = param.result as? Bitmap ?: return
@@ -722,6 +741,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     XposedBridge.hookMethod(method, object : XC_MethodHook(Int.MAX_VALUE) {
                         override fun afterHookedMethod(param: MethodHookParam) {
                             val application = currentApplication() ?: return
+                            if (!Settings.Global.getString(application.contentResolver, LauncherIconPack.SETTING_PACK).isNullOrBlank()) return
                             if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) != 1) return
                             val bitmap = param.result as? Bitmap ?: return
                             val style = MonetThemedIconFactory.moodCubeIconStyle(application)
@@ -752,6 +772,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     XposedBridge.hookMethod(method, object : XC_MethodHook(Int.MAX_VALUE) {
                         override fun afterHookedMethod(param: MethodHookParam) {
                             val application = currentApplication() ?: return
+                            if (!Settings.Global.getString(application.contentResolver, LauncherIconPack.SETTING_PACK).isNullOrBlank()) return
                             if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) != 1) return
                             val style = MonetThemedIconFactory.moodCubeIconStyle(application)
                             if (!style.themed) return
@@ -764,6 +785,54 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 }
             }.onFailure(XposedBridge::log)
         }
+    }
+
+    private fun hookIconPackCache(classLoader: ClassLoader) {
+        // These are the same bitmap-producing paths used by the Monet hooks. Running
+        // after them lets a selected pack take precedence in the launcher cache.
+        var hooked = 0
+        listOf(
+            "x8.a", "y8.a", "z8.a", "w8.a",
+            "com.bbk.launcher2.launcherIcon.LauncherIconImpl",
+            "com.bbk.launcher2.launcherIcon.data.iconcache.IconManager"
+        ).forEach { className ->
+            runCatching {
+                val target = Class.forName(className, false, classLoader)
+                target.declaredMethods.filter { method ->
+                    method.returnType == Bitmap::class.java &&
+                        method.parameterTypes.any {
+                            it == String::class.java || it == ComponentName::class.java ||
+                                it.name == "com.bbk.launcher2.launcherCommon.mode.e"
+                        }
+                }.forEach { method ->
+                    method.isAccessible = true
+                    val modelIndex = method.parameterTypes.indexOfFirst {
+                        it.name == "com.bbk.launcher2.launcherCommon.mode.e"
+                    }
+                    XposedBridge.hookMethod(method, object : XC_MethodHook(Int.MIN_VALUE) {
+                        override fun afterHookedMethod(param: MethodHookParam) {
+                            val application = currentApplication() ?: return
+                            val original = param.result as? Bitmap ?: return
+                            val model = if (modelIndex >= 0) param.args.getOrNull(modelIndex) else null
+                            val modelComponent = model?.let {
+                                runCatching { it.javaClass.getMethod("L4").invoke(it) as? ComponentName }.getOrNull()
+                            }
+                            val component = param.args.filterIsInstance<ComponentName>().firstOrNull() ?: modelComponent
+                            val raw = param.args.filterIsInstance<String>().firstOrNull { it.contains('.') }
+                            val parsed = raw?.removePrefix("ComponentInfo{")?.removeSuffix("}")
+                                ?.let(ComponentName::unflattenFromString)
+                            val packageName = component?.packageName ?: parsed?.packageName ?: raw?.takeIf { '/' !in it }
+                            if (packageName.isNullOrBlank()) return
+                            val resolver = launcherIconPack ?: LauncherIconPack(application).also { launcherIconPack = it }
+                            val source = param.args.filterIsInstance<Drawable>().firstOrNull()
+                            resolver.bitmap(component ?: parsed, packageName, original, source)?.let { param.result = it }
+                        }
+                    })
+                    hooked++
+                }
+            }.onFailure(XposedBridge::log)
+        }
+        Log.i("OriginIconPack", "Launcher bitmap hooks installed: $hooked")
     }
 
     private fun hookMusicWidgetAllowLists(classLoader: ClassLoader) {

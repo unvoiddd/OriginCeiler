@@ -6,6 +6,13 @@ class OriginIconsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Thread { LsposedScopeSync.sync(applicationInfo.sourceDir) }.start()
+        Thread {
+            if (runCatching {
+                    ProcessBuilder("su", "-c", "settings get global ${BlueLmRussianHook.SETTING_ENABLED}")
+                        .redirectErrorStream(true).start().inputStream.bufferedReader().readText().trim() == "1"
+                }.getOrDefault(false)
+            ) runCatching { WhisperModelManager.requireModel(this) }
+        }.start()
         val preferences = getSharedPreferences("module_runtime", 0)
         if (preferences.getInt("version_code", -1) == BuildConfig.VERSION_CODE) return
         preferences.edit().putInt("version_code", BuildConfig.VERSION_CODE).apply()

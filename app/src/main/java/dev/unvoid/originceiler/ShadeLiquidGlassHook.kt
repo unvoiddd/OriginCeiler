@@ -189,7 +189,7 @@ class ShadeLiquidGlassHook {
             it.javaClass.name.contains("Icon", true) || it.javaClass.name.contains("Label", true) || it.javaClass.name.contains("Text", true)
         }.forEach { target ->
             val original = if (target is ImageView) target.drawable ?: target.background else target.background
-            val drawable = ShadeLiquidGlassEngine.attach(target, GlassRole.CONTROL_CENTER)
+            val drawable = ShadeLiquidGlassEngine.attach(target, specRole(spec))
             drawable.captureShape(original, owner.javaClass.name.contains("ConnectGroup", true))
             if (owner.javaClass.name.contains("Tile", true) && !owner.javaClass.name.contains("Group", true)) drawable.setActive(active)
             
@@ -283,7 +283,7 @@ class ShadeLiquidGlassHook {
             hookAll(View::class.java, name, object : XC_MethodHook(Int.MAX_VALUE) {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     val view = param.thisObject as? View ?: return
-                    if (!ShadeBackgroundGuard.internal() && ShadeLiquidGlassEngine.role(view) == GlassRole.CONTROL_CENTER && controlCenterEnabled(view.context)) {
+                    if (!ShadeBackgroundGuard.internal() && ShadeLiquidGlassEngine.role(view) != null && controlCenterEnabled(view.context)) {
                         param.setResult(null)
                     }
                 }
@@ -293,7 +293,7 @@ class ShadeLiquidGlassHook {
             hookAll(ImageView::class.java, name, object : XC_MethodHook(Int.MAX_VALUE) {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     val view = param.thisObject as? ImageView ?: return
-                    if (!ShadeBackgroundGuard.internal() && ShadeLiquidGlassEngine.role(view) == GlassRole.CONTROL_CENTER && controlCenterEnabled(view.context)) {
+                    if (!ShadeBackgroundGuard.internal() && ShadeLiquidGlassEngine.role(view) != null && controlCenterEnabled(view.context)) {
                         param.setResult(null)
                     }
                 }
@@ -352,8 +352,20 @@ class ShadeLiquidGlassHook {
         val methods: List<String>,
         val ownerOnly: Boolean = false,
         val imageLayer: Boolean = false,
-        val deepBackground: Boolean = false
+        val deepBackground: Boolean = false,
+        val role: GlassRole? = null
     )
+
+    private fun specRole(spec: ControlCenterSpec): GlassRole {
+        spec.role?.let { return it }
+        val name = spec.name
+        return when {
+            name.contains("SeekBar") || name.contains("BrightnessSlider") || name.contains("FooterView") -> GlassRole.SLIDER
+            name.contains("MediaPlayer") || name.contains("MixMusic") -> GlassRole.PLAYER
+            name.contains("Header") -> GlassRole.BUTTON
+            else -> GlassRole.TILE
+        }
+    }
 
     companion object {
         const val SETTING_NOTIFICATIONS = "originceiler_liquid_glass_notifications"
@@ -367,6 +379,14 @@ class ShadeLiquidGlassHook {
         const val SETTING_QUALITY = "originceiler_liquid_glass_quality"
         const val SETTING_CC_RADIUS = "originceiler_liquid_glass_cc_radius"
         const val SETTING_NATIVE_BG_BLUR = "originceiler_native_bg_blur"
+        const val SETTING_TILES_BLUR = "originceiler_liquid_glass_tiles_blur"
+        const val SETTING_TILES_TINT = "originceiler_liquid_glass_tiles_tint"
+        const val SETTING_PLAYER_BLUR = "originceiler_liquid_glass_player_blur"
+        const val SETTING_PLAYER_TINT = "originceiler_liquid_glass_player_tint"
+        const val SETTING_SLIDER_BLUR = "originceiler_liquid_glass_slider_blur"
+        const val SETTING_SLIDER_TINT = "originceiler_liquid_glass_slider_tint"
+        const val SETTING_BUTTON_BLUR = "originceiler_liquid_glass_button_blur"
+        const val SETTING_BUTTON_TINT = "originceiler_liquid_glass_button_tint"
         private const val NOTIFICATION_BACKGROUND_CLASS = "com.android.systemui.statusbar.notification.row.NotificationBackgroundView"
         private val notificationClasses = Collections.synchronizedMap(WeakHashMap<Class<*>, Boolean>())
         private val controlCenterClasses = Collections.synchronizedMap(WeakHashMap<Class<*>, Boolean>())
@@ -492,6 +512,24 @@ class ShadeLiquidGlassHook {
                 listOf("mMixWidgetView", "mMusicWidgetView", "mWidgetView", "mMusicContainer"),
                 listOf("setMixWidgetView", "addMixWidgetView", "addAllViews", "initMixWidget", "onAttachedToWindow", "updateChildBlurVisible", "onRealtimeBlurSwitchChanged", "updateMixWidgetVisibility", "setPressed", "drawableStateChanged", "dispatchSetPressed"),
                 deepBackground = true
+            ),
+            ControlCenterSpec(
+                "com.vivo.systemuiplugin.systemui.vivoqscenter.view.VivoSuperQSHeader",
+                listOf("mSetting", "mEdit", "mMoreMenu"),
+                listOf("onFinishInflate", "onAttachedToWindow", "onVivoQSCenterThemeChanged", "onDarkChanged", "onConfigurationChanged", "dispatchConfigurationChanged"),
+                role = GlassRole.BUTTON
+            ),
+            ControlCenterSpec(
+                "com.vivo.systemuiplugin.systemui.qs.brightness.VivoQsBrightnessSlider",
+                emptyList(),
+                listOf("onFinishInflate", "onAttachedToWindow", "updateBgColor", "updateThemeColor", "setValue", "setChecked"),
+                role = GlassRole.SLIDER
+            ),
+            ControlCenterSpec(
+                "com.vivo.systemuiplugin.systemui.qs.VivoQSFooterView",
+                listOf("mFlContainer", "mBrightnessSliderView", "mVolumeSlider", "mBrightnessView", "mVolumeView"),
+                listOf("onFinishInflate", "onAttachedToWindow", "onVivoControlCenterStateChanged", "setExpansion", "setExpanded", "onExpansionChanged"),
+                role = GlassRole.SLIDER
             )
         )
         private val CONTROL_CENTER_CLASSES_BY_NAME = CONTROL_CENTER_CLASSES.associateBy { it.name }
@@ -500,7 +538,11 @@ class ShadeLiquidGlassHook {
 
 private enum class GlassRole {
     NOTIFICATION,
-    CONTROL_CENTER
+    CONTROL_CENTER,
+    TILE,
+    PLAYER,
+    SLIDER,
+    BUTTON
 }
 
 private data class GlassTuning(
@@ -520,7 +562,9 @@ private object ShadeLiquidGlassEngine {
     @Volatile
     private var tuningReadAt = 0L
     @Volatile
-    private var cachedTuning = GlassTuning(1f, 1f, 1f, 1.2f, 1f, 1f, 0f, 0.35f)
+    private var cachedTunings = emptyMap<GlassRole, GlassTuning>()
+
+    private val defaultTuning = GlassTuning(1f, 1f, 1f, 1.2f, 1f, 1f, 0f, 0.35f)
 
     fun attach(view: View, role: GlassRole): ShadeLiquidGlassDrawable {
         synchronized(drawables) {
@@ -532,24 +576,48 @@ private object ShadeLiquidGlassEngine {
 
     fun role(view: View): GlassRole? = synchronized(drawables) { drawables[view]?.role }
 
-    fun tuning(context: Context): GlassTuning {
+    fun tuning(context: Context, role: GlassRole): GlassTuning {
         val now = SystemClock.uptimeMillis()
-        if (now - tuningReadAt < 250L) return cachedTuning
-        cachedTuning = runCatching {
+        cachedTunings[role]?.let { if (now - tuningReadAt < 250L) return it }
+        val fresh = runCatching {
             val resolver = context.contentResolver
+            val roleBlur = roleScale(resolver, roleBlurKey(role))
+            val roleTint = roleScale(resolver, roleTintKey(role))
             GlassTuning(
-                Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_BLUR, 100).coerceIn(0, 200) / 100f,
+                Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_BLUR, 100).coerceIn(0, 200) / 100f * roleBlur,
                 Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_REFRACTION, 100).coerceIn(0, 200) / 100f,
                 Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_DISPERSION, 100).coerceIn(0, 200) / 100f,
                 Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_SATURATION, 120).coerceIn(50, 180) / 100f,
-                Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_TINT, 100).coerceIn(0, 200) / 100f,
+                Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_TINT, 100).coerceIn(0, 200) / 100f * roleTint,
                 Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_EDGE, 100).coerceIn(0, 200) / 100f,
                 Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_CC_RADIUS, 0).toFloat(),
                 0.16f + Settings.Global.getInt(resolver, ShadeLiquidGlassHook.SETTING_QUALITY, 35).coerceIn(20, 50) / 100f * 0.8f
             )
-        }.getOrDefault(cachedTuning)
+        }.getOrDefault(cachedTunings[role] ?: defaultTuning)
+        cachedTunings = cachedTunings + (role to fresh)
         tuningReadAt = now
-        return cachedTuning
+        return fresh
+    }
+
+    private fun roleScale(resolver: android.content.ContentResolver, key: String?): Float {
+        if (key == null) return 1f
+        return runCatching { Settings.Global.getInt(resolver, key, 100).coerceIn(0, 200) / 100f }.getOrDefault(1f)
+    }
+
+    private fun roleBlurKey(role: GlassRole): String? = when (role) {
+        GlassRole.TILE -> ShadeLiquidGlassHook.SETTING_TILES_BLUR
+        GlassRole.PLAYER -> ShadeLiquidGlassHook.SETTING_PLAYER_BLUR
+        GlassRole.SLIDER -> ShadeLiquidGlassHook.SETTING_SLIDER_BLUR
+        GlassRole.BUTTON -> ShadeLiquidGlassHook.SETTING_BUTTON_BLUR
+        else -> null
+    }
+
+    private fun roleTintKey(role: GlassRole): String? = when (role) {
+        GlassRole.TILE -> ShadeLiquidGlassHook.SETTING_TILES_TINT
+        GlassRole.PLAYER -> ShadeLiquidGlassHook.SETTING_PLAYER_TINT
+        GlassRole.SLIDER -> ShadeLiquidGlassHook.SETTING_SLIDER_TINT
+        GlassRole.BUTTON -> ShadeLiquidGlassHook.SETTING_BUTTON_TINT
+        else -> null
     }
 }
 
@@ -799,7 +867,7 @@ private class ShadeLiquidGlassDrawable(
 
     override fun draw(canvas: Canvas) {
         if (bounds.isEmpty) return
-        val tuning = ShadeLiquidGlassEngine.tuning(host.context)
+        val tuning = ShadeLiquidGlassEngine.tuning(host.context, role)
         capture.request(host, tuning.captureScale)
         val bitmap = capture.bitmap()
         val radii = resolvedRadii(tuning)
@@ -922,7 +990,7 @@ private class ShadeLiquidGlassDrawable(
             name.contains("Music") || name.contains("Container")
         }
         
-        if (!isContainer && shortSide > 0f && max(width, height) <= shortSide * 1.15f && (role != GlassRole.CONTROL_CENTER || shortSide < 90f * density)) {
+        if (!isContainer && shortSide > 0f && max(width, height) <= shortSide * 1.15f && (role != GlassRole.CONTROL_CENTER && role != GlassRole.BUTTON || shortSide < 90f * density)) {
             val r = shortSide * 0.5f
             return FloatArray(8) { r }
         }

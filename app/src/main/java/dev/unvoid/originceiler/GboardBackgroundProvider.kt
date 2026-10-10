@@ -7,14 +7,16 @@ import android.net.Uri
 import android.os.Binder
 import android.os.ParcelFileDescriptor
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 class GboardBackgroundProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val currentContext = context ?: error("Provider context is unavailable")
-        val packages = currentContext.packageManager.getPackagesForUid(Binder.getCallingUid()).orEmpty()
-        if ("com.google.android.inputmethod.latin" !in packages && "com.android.systemui" !in packages && currentContext.packageName !in packages) {
+        val callingUid = Binder.getCallingUid()
+        val packages = currentContext.packageManager.getPackagesForUid(callingUid).orEmpty()
+        if (callingUid != 0 && callingUid != 2000 && "com.google.android.inputmethod.latin" !in packages && "com.android.systemui" !in packages && currentContext.packageName !in packages) {
             throw SecurityException("Caller is not allowed")
         }
         val prefix = if (uri.lastPathSegment == "notifications") "notifications-background" else "gboard-background"
@@ -25,8 +27,17 @@ class GboardBackgroundProvider : ContentProvider() {
         val temporaryPath = shellPath(temporary.absolutePath)
         val command = "/system/bin/screencap -p $temporaryPath && chown $uid:$uid $temporaryPath && chmod 600 $temporaryPath && mv -f $temporaryPath $targetPath"
         val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
-        process.inputStream.bufferedReader().readText()
-        if (process.waitFor() != 0 || !target.isFile) error("Unable to capture keyboard background")
+        try {
+            // Never hang the keyboard's Binder/UI thread forever on a stuck su/screencap.
+            if (!process.waitFor(6L, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                error("Timed out while capturing keyboard background")
+            }
+            process.inputStream.bufferedReader().readText()
+        } finally {
+            runCatching { process.destroy() }
+        }
+        if (process.exitValue() != 0 || !target.isFile) error("Unable to capture keyboard background")
         return ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY)
     }
 

@@ -27,6 +27,7 @@ data class UiState(
     val success: Boolean? = null,
     val fullConversion: Boolean = false,
     val autoRecolor: Boolean = true,
+    val replaceIconBackground: Boolean = false,
     val paletteHue: Float = 258f,
     val paletteTone: Float = 0.62f,
     val aospTint: Int? = 0xFFA5C8E8.toInt(),
@@ -42,6 +43,7 @@ data class UiState(
     val bypassGeminiRegionalRestrictions: Boolean = false,
     val removePackageInstallerAfterReboot: Boolean = false,
     val powerButtonGemini: Boolean = false,
+    val blueLmRussian: Boolean = false,
     val hideVivoServiceError: Boolean = false,
     val aospVolumeBar: Boolean = false,
     val centeredNotificationClock: Boolean = false,
@@ -55,11 +57,19 @@ data class UiState(
     val materialOriginOsGoogleSansFlex: Boolean = false,
     val materialOriginOsVolume: Boolean = false,
     val materialOriginOsLockscreen: Boolean = false,
-    val materialBackGesture: Boolean = false,
     val aospStatusbar: Boolean = false,
     val statusbarWifiPack: Int = 0,
     val statusbarBatteryPack: Int = 0,
     val statusbarMobilePack: Int = 0,
+    val statusBarBatteryScale: Float = 100f,
+    val statusBarBatteryX: Float = 0f,
+    val statusBarBatteryTextScale: Float = 100f,
+    val statusBarBatteryTextWeight: Float = 700f,
+    val statusBarWifiScale: Float = 100f,
+    val statusBarWifiX: Float = 0f,
+    val statusBarClockScale: Float = 100f,
+    val statusBarClockX: Float = 0f,
+    val statusBarSystemIconsScale: Float = 100f,
     val controlCenterIconPack: Int = 0,
     val liquidGlassControlCenter: Boolean = false,
     val liquidGlassBlur: Float = 100f,
@@ -70,6 +80,30 @@ data class UiState(
     val liquidGlassEdge: Float = 100f,
     val liquidGlassQuality: Float = 35f,
     val liquidGlassCornerRadius: Float = 0f,
+    val liquidGlassTilesBlur: Float = 100f,
+    val liquidGlassTilesTint: Float = 100f,
+    val liquidGlassPlayerBlur: Float = 100f,
+    val liquidGlassPlayerTint: Float = 100f,
+    val liquidGlassSliderBlur: Float = 100f,
+    val liquidGlassSliderTint: Float = 100f,
+    val liquidGlassButtonBlur: Float = 100f,
+    val liquidGlassButtonTint: Float = 100f,
+    val nativeBlurControlCenter: Float = 100f,
+    val nativeBlurNotifications: Float = 100f,
+    val nativeBlurPanel: Float = 100f,
+    val nativeBlurDisablePanelScale: Boolean = false,
+    val nativeBlurTuner: Boolean = false,
+    val nativeBlurTiles: Float = 100f,
+    val nativeBlurTilesSat: Float = 100f,
+    val nativeBlurSliders: Float = 100f,
+    val nativeBlurSlidersSat: Float = 100f,
+    val nativeBlurButtons: Float = 100f,
+    val nativeBlurButtonsSat: Float = 100f,
+    val nativeBlurPlayer: Float = 100f,
+    val nativeBlurPlayerSat: Float = 100f,
+    val nativeBlurOther: Float = 100f,
+    val nativeBlurOtherSat: Float = 100f,
+    val nativeBlurPanelDarken: Float = 100f,
     val allowAllMediaPlayers: Boolean = false,
     val liveUpdatesInOriginIsland: Boolean = false,
     val allProgressInOriginIsland: Boolean = false,
@@ -78,7 +112,7 @@ data class UiState(
     val appThemeMode: Int = 1,
     val monetColors: Boolean = false,
     val uiScale: Float = 100f,
-    val liquidGlassBar: Boolean = false,
+    val liquidGlassBar: Boolean = true,
     val autoHideBar: Boolean = true,
     val showIntro: Boolean = true
 )
@@ -88,12 +122,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val installer = RootThemeInstaller(application)
     private val preferences = application.getSharedPreferences("settings", 0)
     private var launcherIconSizeJob: Job? = null
+    private var statusBarBatteryScaleJob: Job? = null
+    private var statusBarBatteryXJob: Job? = null
+    private var statusBarBatteryTextScaleJob: Job? = null
+    private var statusBarBatteryTextWeightJob: Job? = null
+    private var statusBarWifiScaleJob: Job? = null
+    private var statusBarWifiXJob: Job? = null
+    private var statusBarClockScaleJob: Job? = null
+    private var statusBarClockXJob: Job? = null
+    private var statusBarSystemIconsScaleJob: Job? = null
+    private var iconPackOptionsJob: Job? = null
     private var notificationClockSizeJob: Job? = null
     private val liquidGlassSettingJobs = mutableMapOf<String, Job>()
     private val mutableState = MutableStateFlow(
         UiState(
             fullConversion = preferences.getBoolean("full_conversion", false),
             autoRecolor = preferences.getBoolean("auto_recolor", true),
+            replaceIconBackground = preferences.getBoolean("replace_icon_background", false),
             paletteHue = preferences.getFloat("palette_hue", 258f),
             paletteTone = preferences.getFloat("palette_tone", 0.62f),
             aospTint = if (preferences.getBoolean("aosp_filter", true)) preferences.getInt("aosp_tint", 0xFFA5C8E8.toInt()) else null,
@@ -109,6 +154,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             bypassGeminiRegionalRestrictions = Settings.Global.getInt(application.contentResolver, "originroottoolbox_bypass_gemini_region", 0) == 1,
             removePackageInstallerAfterReboot = Settings.Global.getInt(application.contentResolver, "originroottoolbox_remove_package_installer_boot", 0) == 1,
             powerButtonGemini = Settings.Global.getInt(application.contentResolver, "originicons_power_button_gemini", 0) == 1,
+            blueLmRussian = Settings.Global.getInt(application.contentResolver, BlueLmRussianHook.SETTING_ENABLED, 0) == 1,
             hideVivoServiceError = Settings.Global.getInt(application.contentResolver, "originicons_hide_vivo_service_error", 0) == 1,
             aospVolumeBar = Settings.Global.getInt(application.contentResolver, "originicons_aosp_volume_bar", 0) == 1,
             centeredNotificationClock = Settings.Global.getInt(
@@ -126,11 +172,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             materialOriginOsGoogleSansFlex = Settings.Global.getInt(application.contentResolver, MaterialOriginOsStatusFontHook.SETTING_ENABLED, 0) == 1,
             materialOriginOsVolume = Settings.Global.getInt(application.contentResolver, MaterialOriginOsHook.SETTING_VOLUME, 0) == 1,
             materialOriginOsLockscreen = Settings.Global.getInt(application.contentResolver, MaterialOriginOsLockscreenHook.SETTING_ENABLED, 0) == 1,
-            materialBackGesture = Settings.Global.getInt(application.contentResolver, MaterialBackGestureHook.SETTING_ENABLED, 0) == 1,
             aospStatusbar = Settings.Global.getInt(application.contentResolver, "originicons_aosp_statusbar", 0) == 1,
             statusbarWifiPack = Settings.Global.getInt(application.contentResolver, "originicons_statusbar_wifi_pack", 0),
             statusbarBatteryPack = Settings.Global.getInt(application.contentResolver, "originicons_statusbar_battery_pack", 0),
             statusbarMobilePack = Settings.Global.getInt(application.contentResolver, "originicons_statusbar_mobile_pack", 0),
+            statusBarBatteryScale = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_battery_scale", 100).toFloat(),
+            statusBarBatteryX = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_battery_x", 0).toFloat(),
+            statusBarBatteryTextScale = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_battery_text_scale", 100).toFloat(),
+            statusBarBatteryTextWeight = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_battery_text_weight", 700).toFloat(),
+            statusBarWifiScale = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_wifi_scale", 100).toFloat(),
+            statusBarWifiX = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_wifi_x", 0).toFloat(),
+            statusBarClockScale = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_clock_scale", 100).toFloat(),
+            statusBarClockX = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_clock_x", 0).toFloat(),
+            statusBarSystemIconsScale = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_system_icons_scale", 100).toFloat(),
             controlCenterIconPack = Settings.Global.getInt(application.contentResolver, "originicons_control_center_icon_pack", 0),
             liquidGlassControlCenter = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_CONTROL_CENTER, 0) == 1,
             liquidGlassBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_BLUR, 100).toFloat(),
@@ -141,6 +195,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             liquidGlassEdge = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_EDGE, 100).toFloat(),
             liquidGlassQuality = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_QUALITY, 35).toFloat(),
             liquidGlassCornerRadius = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_CC_RADIUS, 0).toFloat(),
+            liquidGlassTilesBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_TILES_BLUR, 100).toFloat(),
+            liquidGlassTilesTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_TILES_TINT, 100).toFloat(),
+            liquidGlassPlayerBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_PLAYER_BLUR, 100).toFloat(),
+            liquidGlassPlayerTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_PLAYER_TINT, 100).toFloat(),
+            liquidGlassSliderBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_SLIDER_BLUR, 100).toFloat(),
+            liquidGlassSliderTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_SLIDER_TINT, 100).toFloat(),
+            liquidGlassButtonBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_BUTTON_BLUR, 100).toFloat(),
+            liquidGlassButtonTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_BUTTON_TINT, 100).toFloat(),
+            nativeBlurControlCenter = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_CONTROL_CENTER_BLUR, 100).toFloat(),
+            nativeBlurNotifications = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_NOTIFICATIONS_BLUR, 100).toFloat(),
+            nativeBlurPanel = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_PANEL_BLUR, 100).toFloat(),
+            nativeBlurDisablePanelScale = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_DISABLE_PANEL_SCALE, 0) == 1,
             allowAllMediaPlayers = Settings.Global.getInt(application.contentResolver, "originicons_allow_all_media_players", 0) == 1,
             liveUpdatesInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_ENABLED, 0) == 1,
             allProgressInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_ALL_PROGRESS, 0) == 1,
@@ -149,7 +215,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             appThemeMode = preferences.getInt("app_theme_mode", 1),
             monetColors = preferences.getBoolean("monet_colors", false),
             uiScale = preferences.getFloat("ui_scale", 100f),
-            liquidGlassBar = preferences.getBoolean("liquid_glass_bar", false),
+            liquidGlassBar = preferences.getBoolean("liquid_glass_bar", true),
             autoHideBar = preferences.getBoolean("auto_hide_bar", true),
             showIntro = !preferences.getBoolean("intro_seen", false)
         )
@@ -184,10 +250,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             mutableState.value = mutableState.value.copy(loading = true, status = "Finding icon packs…", success = null)
             val packs = withContext(Dispatchers.IO) { engine.findPacks() }
+            val activePack = packs.firstOrNull {
+                it.packageName == Settings.Global.getString(getApplication<Application>().contentResolver, LauncherIconPack.SETTING_PACK)
+            }
             mutableState.value = mutableState.value.copy(
                 packs = packs,
-                source = IconSource.SYSTEM,
-                selected = null,
+                source = if (activePack != null) IconSource.PACK else IconSource.SYSTEM,
+                selected = activePack,
                 coverage = null,
                 loading = false,
                 status = if (packs.isEmpty()) "System and custom palette are ready" else "Ready"
@@ -320,6 +389,173 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_QUALITY, adjusted.toInt())
     }
 
+    fun setLiquidGlassTilesBlur(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassTilesBlur = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_TILES_BLUR, adjusted.toInt())
+    }
+
+    fun setLiquidGlassTilesTint(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassTilesTint = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_TILES_TINT, adjusted.toInt())
+    }
+
+    fun setLiquidGlassPlayerBlur(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassPlayerBlur = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_PLAYER_BLUR, adjusted.toInt())
+    }
+
+    fun setLiquidGlassPlayerTint(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassPlayerTint = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_PLAYER_TINT, adjusted.toInt())
+    }
+
+    fun setLiquidGlassSliderBlur(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassSliderBlur = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_SLIDER_BLUR, adjusted.toInt())
+    }
+
+    fun setLiquidGlassSliderTint(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassSliderTint = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_SLIDER_TINT, adjusted.toInt())
+    }
+
+    fun setLiquidGlassButtonBlur(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassButtonBlur = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_BUTTON_BLUR, adjusted.toInt())
+    }
+
+    fun setLiquidGlassButtonTint(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(liquidGlassButtonTint = adjusted)
+        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_BUTTON_TINT, adjusted.toInt())
+    }
+
+    fun setNativeBlurTuner(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(applying = true, status = "Applying native blur tuner…", success = null)
+            val result = withContext(Dispatchers.IO) { installer.setNativeBlurTuner(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(nativeBlurTuner = enabled)
+            mutableState.value = mutableState.value.copy(
+                applying = false,
+                status = if (result.success) "Native blur tuner applied" else "Unable to apply native blur tuner",
+                success = result.success
+            )
+        }
+    }
+
+    fun setNativeBlurControlCenter(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurControlCenter = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_CONTROL_CENTER_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurNotifications(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurNotifications = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_NOTIFICATIONS_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurDisablePanelScale(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(applying = true, status = "Applying background motion setting…", success = null)
+            val result = withContext(Dispatchers.IO) { installer.setNativeBlurPanelScaleDisabled(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(nativeBlurDisablePanelScale = enabled)
+            mutableState.value = mutableState.value.copy(
+                applying = false,
+                status = if (result.success) "Background motion setting applied" else "Unable to apply background motion setting",
+                success = result.success
+            )
+        }
+    }
+
+    fun setNativeBlurTiles(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurTiles = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_TILES_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurTilesSat(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurTilesSat = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_TILES_SAT, adjusted.toInt())
+    }
+
+    fun setNativeBlurSliders(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurSliders = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_SLIDERS_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurSlidersSat(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurSlidersSat = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_SLIDERS_SAT, adjusted.toInt())
+    }
+
+    fun setNativeBlurButtons(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurButtons = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_BUTTONS_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurButtonsSat(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurButtonsSat = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_BUTTONS_SAT, adjusted.toInt())
+    }
+
+    fun setNativeBlurPlayer(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurPlayer = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_PLAYER_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurPlayerSat(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurPlayerSat = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_PLAYER_SAT, adjusted.toInt())
+    }
+
+    fun setNativeBlurOther(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurOther = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_OTHER_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurOtherSat(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurOtherSat = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_OTHER_SAT, adjusted.toInt())
+    }
+
+    fun setNativeBlurPanel(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurPanel = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_PANEL_BLUR, adjusted.toInt())
+    }
+
+    fun setNativeBlurPanelDarken(value: Float) {
+        val adjusted = value.coerceIn(0f, 200f)
+        mutableState.value = mutableState.value.copy(nativeBlurPanelDarken = adjusted)
+        persistNativeBlurSetting(NativeBlurHook.SETTING_PANEL_DARKEN, adjusted.toInt())
+    }
+
+    private fun persistNativeBlurSetting(key: String, value: Int) {
+        liquidGlassSettingJobs.remove(key)?.cancel()
+        liquidGlassSettingJobs[key] = viewModelScope.launch {
+            delay(90)
+            withContext(Dispatchers.IO) { installer.setNativeBlurParameter(key, value) }
+            liquidGlassSettingJobs.remove(key)
+        }
+    }
+
     private fun persistLiquidGlassSetting(key: String, value: Int) {
         liquidGlassSettingJobs.remove(key)?.cancel()
         liquidGlassSettingJobs[key] = viewModelScope.launch {
@@ -418,6 +654,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setAutoRecolor(enabled: Boolean) {
         preferences.edit().putBoolean("auto_recolor", enabled).apply()
         mutableState.value = mutableState.value.copy(autoRecolor = enabled)
+        updateActiveIconPackOptions()
+    }
+
+    fun setReplaceIconBackground(enabled: Boolean) {
+        preferences.edit().putBoolean("replace_icon_background", enabled).apply()
+        mutableState.value = mutableState.value.copy(replaceIconBackground = enabled)
+        updateActiveIconPackOptions()
+    }
+
+    private fun updateActiveIconPackOptions() {
+        val pack = mutableState.value.selected ?: return
+        if (mutableState.value.source != IconSource.PACK ||
+            Settings.Global.getString(getApplication<Application>().contentResolver, LauncherIconPack.SETTING_PACK) != pack.packageName
+        ) return
+        iconPackOptionsJob?.cancel()
+        iconPackOptionsJob = viewModelScope.launch {
+            delay(150)
+            val options = mutableState.value
+            val result = withContext(Dispatchers.IO) {
+                installer.setLiveIconPackOptions(options.autoRecolor, options.replaceIconBackground)
+            }
+            if (!result.success) mutableState.value = mutableState.value.copy(status = result.message, success = false)
+        }
     }
 
     fun setCircleToSearch(enabled: Boolean) {
@@ -463,6 +722,132 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setStatusBarBatteryScale(value: Float) {
+        val size = value.toInt().coerceIn(50, 150)
+        mutableState.value = mutableState.value.copy(statusBarBatteryScale = size.toFloat())
+        statusBarBatteryScaleJob?.cancel()
+        statusBarBatteryScaleJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarBatteryScale(size) }
+        }
+    }
+
+    fun setStatusBarBatteryX(value: Float) {
+        val offset = value.toInt().coerceIn(-150, 150)
+        mutableState.value = mutableState.value.copy(statusBarBatteryX = offset.toFloat())
+        statusBarBatteryXJob?.cancel()
+        statusBarBatteryXJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarBatteryX(offset) }
+        }
+    }
+
+    fun setStatusBarBatteryTextScale(value: Float) {
+        val size = value.toInt().coerceIn(50, 150)
+        mutableState.value = mutableState.value.copy(statusBarBatteryTextScale = size.toFloat())
+        statusBarBatteryTextScaleJob?.cancel()
+        statusBarBatteryTextScaleJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarBatteryTextScale(size) }
+        }
+    }
+
+    fun setStatusBarBatteryTextWeight(value: Float) {
+        val weight = ((value.toInt() + 50) / 100 * 100).coerceIn(100, 900)
+        mutableState.value = mutableState.value.copy(statusBarBatteryTextWeight = weight.toFloat())
+        statusBarBatteryTextWeightJob?.cancel()
+        statusBarBatteryTextWeightJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarBatteryTextWeight(weight) }
+        }
+    }
+
+    fun setStatusBarWifiScale(value: Float) {
+        val size = value.toInt().coerceIn(50, 150)
+        mutableState.value = mutableState.value.copy(statusBarWifiScale = size.toFloat())
+        statusBarWifiScaleJob?.cancel()
+        statusBarWifiScaleJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarWifiScale(size) }
+        }
+    }
+
+    fun setStatusBarWifiX(value: Float) {
+        val offset = value.toInt().coerceIn(-150, 150)
+        mutableState.value = mutableState.value.copy(statusBarWifiX = offset.toFloat())
+        statusBarWifiXJob?.cancel()
+        statusBarWifiXJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarWifiX(offset) }
+        }
+    }
+
+    fun setStatusBarClockScale(value: Float) {
+        val size = value.toInt().coerceIn(50, 150)
+        mutableState.value = mutableState.value.copy(statusBarClockScale = size.toFloat())
+        statusBarClockScaleJob?.cancel()
+        statusBarClockScaleJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarClockScale(size) }
+        }
+    }
+
+    fun setStatusBarClockX(value: Float) {
+        val offset = value.toInt().coerceIn(-150, 150)
+        mutableState.value = mutableState.value.copy(statusBarClockX = offset.toFloat())
+        statusBarClockXJob?.cancel()
+        statusBarClockXJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarClockX(offset) }
+        }
+    }
+
+    fun setStatusBarSystemIconsScale(value: Float) {
+        val size = value.toInt().coerceIn(50, 150)
+        mutableState.value = mutableState.value.copy(statusBarSystemIconsScale = size.toFloat())
+        statusBarSystemIconsScaleJob?.cancel()
+        statusBarSystemIconsScaleJob = viewModelScope.launch {
+            delay(70)
+            withContext(Dispatchers.IO) { installer.setStatusBarSystemIconsScale(size) }
+        }
+    }
+
+    fun resetStatusBarTweakDefaults() {
+        mutableState.value = mutableState.value.copy(
+            statusBarBatteryScale = 100f,
+            statusBarBatteryX = 0f,
+            statusBarBatteryTextScale = 100f,
+            statusBarBatteryTextWeight = 700f,
+            statusBarWifiScale = 100f,
+            statusBarWifiX = 0f,
+            statusBarClockScale = 100f,
+            statusBarClockX = 0f,
+            statusBarSystemIconsScale = 100f
+        )
+        statusBarBatteryScaleJob?.cancel()
+        statusBarBatteryXJob?.cancel()
+        statusBarBatteryTextScaleJob?.cancel()
+        statusBarBatteryTextWeightJob?.cancel()
+        statusBarWifiScaleJob?.cancel()
+        statusBarWifiXJob?.cancel()
+        statusBarClockScaleJob?.cancel()
+        statusBarClockXJob?.cancel()
+        statusBarSystemIconsScaleJob?.cancel()
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                installer.setStatusBarBatteryScale(100)
+                installer.setStatusBarBatteryX(0)
+                installer.setStatusBarBatteryTextScale(100)
+                installer.setStatusBarBatteryTextWeight(700)
+                installer.setStatusBarWifiScale(100)
+                installer.setStatusBarWifiX(0)
+                installer.setStatusBarClockScale(100)
+                installer.setStatusBarClockX(0)
+                installer.setStatusBarSystemIconsScale(100)
+            }
+        }
+    }
+
     fun setRestoreGoogleAssistant(enabled: Boolean) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { installer.setRestoreGoogleAssistant(enabled) }
@@ -504,6 +889,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             mutableState.value = mutableState.value.copy(
                 applying = false,
                 status = if (result.success) "Power Button Gemini trigger applied" else "Unable to apply Power Button Gemini trigger",
+                success = result.success
+            )
+        }
+    }
+
+    fun setBlueLmRussian(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(applying = true, status = "Applying BlueLM Russian translation…", success = null)
+            val result = withContext(Dispatchers.IO) { installer.setBlueLmRussian(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(blueLmRussian = enabled)
+            mutableState.value = mutableState.value.copy(
+                applying = false,
+                status = if (result.success) "BlueLM translation applied" else "Unable to apply BlueLM translation",
                 success = result.success
             )
         }
@@ -634,19 +1032,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setMaterialBackGesture(enabled: Boolean) {
-        viewModelScope.launch {
-            mutableState.value = mutableState.value.copy(applying = true, status = "Applying Material back gesture…", success = null)
-            val result = withContext(Dispatchers.IO) { installer.setMaterialBackGesture(enabled) }
-            if (result.success) mutableState.value = mutableState.value.copy(materialBackGesture = enabled)
-            mutableState.value = mutableState.value.copy(
-                applying = false,
-                status = if (result.success) "Material back gesture applied" else "Unable to apply Material back gesture",
-                success = result.success
-            )
-        }
-    }
-
     fun setAllowAllMediaPlayers(enabled: Boolean) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { installer.setAllowAllMediaPlayers(enabled) }
@@ -751,6 +1136,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val snapshot = mutableState.value
             mutableState.value = snapshot.copy(applying = true, progress = 0f, status = "Preparing icons…", success = null)
+            if (snapshot.source == IconSource.PACK) {
+                val pack = snapshot.selected
+                if (pack == null) {
+                    mutableState.value = mutableState.value.copy(applying = false, status = "No icon pack selected", success = false)
+                    return@launch
+                }
+                val root = withContext(Dispatchers.IO) {
+                    installer.applyIconPack(pack.packageName, snapshot.autoRecolor, snapshot.replaceIconBackground)
+                }
+                mutableState.value = mutableState.value.copy(
+                    applying = false,
+                    progress = if (root.success) 1f else 0f,
+                    status = if (root.success) "Icon pack applied" else root.message,
+                    success = root.success,
+                    nativeAospThemedIcons = if (root.success) false else mutableState.value.nativeAospThemedIcons
+                )
+                return@launch
+            }
             if (snapshot.source == IconSource.SYSTEM) {
                 val root = withContext(Dispatchers.IO) { installer.resetIcons() }
                 mutableState.value = mutableState.value.copy(
@@ -766,7 +1169,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     when (snapshot.source) {
                         IconSource.PALETTE -> engine.convertPalette(paletteColor(snapshot.paletteHue), snapshot.paletteTone, ::updateProgress)
                         IconSource.AOSP_THEMED -> engine.convertAospThemed(snapshot.aospTint, snapshot.aospInverted, snapshot.aospScale, ::updateProgress)
-                        IconSource.PACK -> engine.convert(snapshot.selected ?: error("No icon pack selected"), snapshot.fullConversion, snapshot.autoRecolor, ::updateProgress)
+                        IconSource.PACK -> error("Icon packs are applied by the launcher hook")
                         IconSource.SYSTEM -> error("Invalid source")
                     }
                 }

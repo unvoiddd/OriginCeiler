@@ -4,6 +4,9 @@ com.google.android.googlequicksearchbox
 com.google.android.inputmethod.latin
 com.vivo.launchercopilot
 com.vivo.ai.copilot
+com.vivo.ai.base.copilot
+com.vivo.ai.copilot.shortcut.component
+com.vivo.ai.gptagent
 com.vivo.upslide
 com.vivo.musicwidgetmix
 com.vivo.musicmixcard

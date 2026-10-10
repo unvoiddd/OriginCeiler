@@ -127,7 +127,7 @@ internal class LiquidDampedDragAnimation(
     }
 }
 
-private suspend fun PointerInputScope.inspectLiquidDragGestures(
+internal suspend fun PointerInputScope.inspectLiquidDragGestures(
     onDragStart: (PointerInputChange) -> Unit,
     onDragEnd: (PointerInputChange) -> Unit,
     onDragCancel: () -> Unit,

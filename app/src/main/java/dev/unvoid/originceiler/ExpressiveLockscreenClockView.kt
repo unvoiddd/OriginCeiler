@@ -22,12 +22,7 @@ import java.util.Locale
 class ExpressiveLockscreenClockView(context: Context) : FrameLayout(context) {
     private val powerManager = context.getSystemService(PowerManager::class.java)
     private val clockTypeface: Typeface by lazy {
-        val moduleContext = runCatching {
-            context.createPackageContext(MODULE_PACKAGE, Context.CONTEXT_IGNORE_SECURITY)
-        }.getOrNull()
-        runCatching {
-            Typeface.Builder(moduleContext!!.assets, FONT_ASSET).build()
-        }.getOrDefault(Typeface.create("sans-serif", Typeface.NORMAL))
+        ClockFontManager.createTypeface(context, FONT_ASSET)
     }
     private val digits = Array(4) { createDigit() }
     private val date = TextView(context).apply {
@@ -146,7 +141,7 @@ class ExpressiveLockscreenClockView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun updateTime() {
+    internal fun updateTime() {
         val calendar = Calendar.getInstance()
         var hour = calendar.get(Calendar.HOUR_OF_DAY)
         if (!DateFormat.is24HourFormat(context)) {
@@ -166,12 +161,24 @@ class ExpressiveLockscreenClockView(context: Context) : FrameLayout(context) {
         post { positionContent() }
     }
 
-    private fun updateColor() {
-        val id = resources.getIdentifier("system_accent1_100", "color", "android")
-        val color = if (id != 0) runCatching { context.getColor(id) }.getOrDefault(FALLBACK_COLOR) else FALLBACK_COLOR
+    internal fun updateColor(overrideColor: Int? = null) {
+        val color = overrideColor ?: run {
+            val raw = runCatching {
+                android.provider.Settings.Global.getString(context.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_COLOR)
+            }.getOrNull()
+            val userColor = raw?.toLongOrNull()?.toInt() ?: 0
+            if (userColor != 0) {
+                userColor
+            } else {
+                val id = resources.getIdentifier("system_accent1_100", "color", "android")
+                if (id != 0) runCatching { context.getColor(id) }.getOrDefault(FALLBACK_COLOR) else FALLBACK_COLOR
+            }
+        }
         digits.forEach { it.setTextColor(color) }
         date.setTextColor(color)
     }
+
+    fun getDigitViews(): List<View> = digits.toList()
 
     private fun positionContent() {
         if (width <= 0 || height <= 0) return

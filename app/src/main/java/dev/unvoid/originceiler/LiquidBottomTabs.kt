@@ -45,7 +45,6 @@ import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -193,30 +192,43 @@ internal fun LiquidBottomTabs(
             )
         }
 
+        val indicatorTransform = Modifier
+            .padding(horizontal = 4f.dp)
+            .graphicsLayer {
+                translationX =
+                    if (isLtr) dampedDragAnimation.value * tabWidth + panelOffset
+                    else size.width - (dampedDragAnimation.value + 1f) * tabWidth + panelOffset
+            }
+        val indicatorScale: androidx.compose.ui.graphics.GraphicsLayerScope.() -> Unit = {
+            scaleX = dampedDragAnimation.scaleX
+            scaleY = dampedDragAnimation.scaleY
+            val velocity = dampedDragAnimation.velocity / 10f
+            scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+            scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+        }
+
+        // Glass of the selected-tab capsule: frosted page content (it used to sample the raw,
+        // unblurred page, so at rest it looked like a clear hole in the panel).
         Box(
-            Modifier
-                .padding(horizontal = 4f.dp)
-                .graphicsLayer {
-                    translationX =
-                        if (isLtr) dampedDragAnimation.value * tabWidth + panelOffset
-                        else size.width - (dampedDragAnimation.value + 1f) * tabWidth + panelOffset
-                }
+            indicatorTransform
                 .then(interactiveHighlight.gestureModifier)
                 .then(dampedDragAnimation.modifier)
                 .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop),
+                    backdrop = backdrop,
                     shape = { Capsule() },
                     effects = {
                         val progress = dampedDragAnimation.pressProgress
+                        vibrancy()
+                        blur(lerp(10f, 4f, progress).dp.toPx())
                         lens(
-                            10f.dp.toPx() * progress,
-                            14f.dp.toPx() * progress,
+                            lerp(6f, 10f, progress).dp.toPx(),
+                            lerp(10f, 14f, progress).dp.toPx(),
                             chromaticAberration = true
                         )
                     },
                     highlight = {
                         val progress = dampedDragAnimation.pressProgress
-                        Highlight.Default.copy(alpha = progress)
+                        Highlight.Default.copy(alpha = lerp(0.35f, 1f, progress))
                     },
                     shadow = {
                         val progress = dampedDragAnimation.pressProgress
@@ -226,21 +238,29 @@ internal fun LiquidBottomTabs(
                         val progress = dampedDragAnimation.pressProgress
                         InnerShadow(radius = 8f.dp * progress, alpha = progress)
                     },
-                    layerBlock = {
-                        scaleX = dampedDragAnimation.scaleX
-                        scaleY = dampedDragAnimation.scaleY
-                        val velocity = dampedDragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
+                    layerBlock = indicatorScale,
                     onDrawSurface = {
                         val progress = dampedDragAnimation.pressProgress
-                        drawRect(
-                            highlightColor,
-                            alpha = 1f - progress
-                        )
+                        drawRect(containerColor)
+                        drawRect(highlightColor, alpha = 1f - progress)
                         drawRect(Color.Black.copy(alpha = 0.03f * progress))
                     }
+                )
+                .height(56f.dp)
+                .fillMaxWidth(1f / tabsCount)
+        )
+        // Accent-tinted tab icons on top of the glass, kept sharp (lens only while pressed).
+        Box(
+            indicatorTransform
+                .drawBackdrop(
+                    backdrop = tabsBackdrop,
+                    shape = { Capsule() },
+                    effects = {
+                        val progress = dampedDragAnimation.pressProgress
+                        lens(10f.dp.toPx() * progress, 14f.dp.toPx() * progress)
+                    },
+                    layerBlock = indicatorScale,
+                    onDrawSurface = {}
                 )
                 .height(56f.dp)
                 .fillMaxWidth(1f / tabsCount)

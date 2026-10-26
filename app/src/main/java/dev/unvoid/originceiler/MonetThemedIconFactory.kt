@@ -53,12 +53,13 @@ object MonetThemedIconFactory {
         val size = if (targetSize > 0) targetSize else 192
         val googleIcon = googleSystemIcon(context, packageName)
         val coreGlyph = if (googleIcon == null) coreSystemGlyph(context, packageName) else null
-        val source = googleIcon ?: if (forceMonet) removeEmbeddedBackground(context, drawable) else drawable
+        val source = googleIcon ?: drawable
         val adaptive = if (source is AdaptiveIconDrawable) {
             source
         } else {
             if (!forceMonet && coreGlyph == null) return null
-            AdaptiveIconDrawable(ColorDrawable(Color.BLACK), InsetDrawable(source, 0.18f))
+            // Transparent backdrop: AospMonochromeDrawable reads the icon's own shape from alpha.
+            AdaptiveIconDrawable(ColorDrawable(Color.TRANSPARENT), InsetDrawable(source, 0.18f))
         }
         adaptive.setBounds(0, 0, size, size)
         val monochrome: Drawable = coreGlyph
@@ -164,17 +165,49 @@ object MonetThemedIconFactory {
         result
     }.getOrNull()
 
-    fun getMonetBackgroundColor(context: Context): Int = runCatching {
-        context.getColor(if (isDarkMode(context)) 0x1060028 else 0x106003a)
-    }.getOrElse {
-        Color.parseColor(if (isDarkMode(context)) "#1C1B1F" else "#E1E2EC")
+    /** vivo's own icon color mode only tints our themed icons when no custom color was picked. */
+    fun applyMoodTintIfNeeded(context: Context, icon: Bitmap, style: MoodCubeIconStyle): Bitmap {
+        if (!style.themed || customThemedColor(context) != null) return icon
+        return applyMoodTint(icon, style.tint) ?: icon
     }
 
-    fun getMonetForegroundColor(context: Context): Int = runCatching {
-        context.getColor(if (isDarkMode(context)) 0x106003a else 0x1060034)
-    }.getOrElse {
-        Color.parseColor(if (isDarkMode(context)) "#E1E2EC" else "#1C1B1F")
+    /** Background of live AOSP themed icons: Material You or the custom color, swapped when inverted. */
+    fun getMonetBackgroundColor(context: Context): Int =
+        if (isThemedInverted(context)) baseForegroundColor(context) else baseBackgroundColor(context)
+
+    fun getMonetForegroundColor(context: Context): Int =
+        if (isThemedInverted(context)) baseBackgroundColor(context) else baseForegroundColor(context)
+
+    private fun baseBackgroundColor(context: Context): Int {
+        val dark = isDarkMode(context)
+        customThemedColor(context)?.let { return if (dark) blend(Color.parseColor("#1C1B1F"), it, 0.30f) else blend(Color.WHITE, it, 0.24f) }
+        return runCatching {
+            context.getColor(if (dark) 0x1060028 else 0x106003a)
+        }.getOrElse {
+            Color.parseColor(if (dark) "#1C1B1F" else "#E1E2EC")
+        }
     }
+
+    private fun baseForegroundColor(context: Context): Int {
+        val dark = isDarkMode(context)
+        customThemedColor(context)?.let { return if (dark) blend(Color.WHITE, it, 0.38f) else blend(it, Color.BLACK, 0.50f) }
+        return runCatching {
+            context.getColor(if (dark) 0x106003a else 0x1060034)
+        }.getOrElse {
+            Color.parseColor(if (dark) "#E1E2EC" else "#1C1B1F")
+        }
+    }
+
+    private fun customThemedColor(context: Context): Int? =
+        Settings.Global.getInt(context.contentResolver, SETTING_THEMED_COLOR, 0).takeIf { it != 0 }?.let(::opaqueColor)
+
+    private fun isThemedInverted(context: Context): Boolean =
+        Settings.Global.getInt(context.contentResolver, SETTING_THEMED_INVERT, 0) == 1
+
+    /** vivo's dialer lives in com.android.contacts, so glyph lookups use its activity class as the key. */
+    const val VIVO_DIALER_CLASS = "com.android.dialer.TwelveKeyDialer"
+    const val SETTING_THEMED_COLOR = "originicons_themed_icon_color"
+    const val SETTING_THEMED_INVERT = "originicons_themed_icon_invert"
 
     fun renderAospThemed(
         context: Context,
@@ -197,8 +230,7 @@ object MonetThemedIconFactory {
         val baseForeground = if (inverted) systemBackground else systemForeground
         val backgroundColor = tint?.let { blend(baseBackground, it, if (inverted) 0.22f else 0.16f) } ?: baseBackground
         val foregroundColor = tint?.let { blend(baseForeground, it, if (inverted) 0.34f else 0.26f) } ?: baseForeground
-        val layer = sourceLayer ?: if (Build.VERSION.SDK_INT >= 33) adaptive.monochrome else null
-        val monochrome = layer ?: AospMonochromeDrawable(adaptive, size)
+        val monochrome = getAospGlyphDrawable(context, sourceDrawable, null, size, sourceLayer)
         monochrome.colorFilter = BlendModeColorFilter(foregroundColor, BlendMode.SRC_IN)
         val result = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
@@ -215,7 +247,27 @@ object MonetThemedIconFactory {
         return result
     }
 
-    private fun removeEmbeddedBackground(context: Context, drawable: Drawable): Drawable {
+    fun getAospGlyphDrawable(
+        context: Context,
+        sourceDrawable: Drawable,
+        packageName: String?,
+        size: Int,
+        sourceLayer: Drawable? = null
+    ): Drawable {
+        val googleIcon = googleSystemIcon(context, packageName)
+        val source = googleIcon ?: removeEmbeddedBackground(context, sourceDrawable)
+        val coreGlyph = sourceLayer ?: (if (googleIcon == null) coreSystemGlyph(context, packageName) else null)
+        val adaptive = if (source is AdaptiveIconDrawable) {
+            source
+        } else {
+            AdaptiveIconDrawable(ColorDrawable(Color.BLACK), InsetDrawable(source, 0.18f))
+        }
+        adaptive.setBounds(0, 0, size, size)
+        val layer = coreGlyph ?: (if (Build.VERSION.SDK_INT >= 33) adaptive.monochrome else null)
+        return layer ?: AospMonochromeDrawable(adaptive, size)
+    }
+
+    internal fun removeEmbeddedBackground(context: Context, drawable: Drawable): Drawable {
         if (drawable is AdaptiveIconDrawable) return drawable
         val size = 256
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
@@ -352,12 +404,12 @@ object MonetThemedIconFactory {
         return (background + (foreground - background) * amount).roundToInt().coerceIn(0, 255)
     }
 
-    private fun googleSystemIcon(context: Context, packageName: String?): Drawable? {
+    internal fun googleSystemIcon(context: Context, packageName: String?): Drawable? {
         val googlePackage = when (packageName) {
             "com.android.camera" -> "com.google.android.GoogleCamera"
             "com.vivo.gallery" -> "com.google.android.apps.photos"
             "com.android.contacts" -> "com.google.android.contacts"
-            "com.android.dialer.TwelveKeyDialer" -> "com.google.android.dialer"
+            VIVO_DIALER_CLASS -> "com.google.android.dialer"
             "com.android.mms" -> "com.google.android.apps.messaging"
             "com.android.BBKClock" -> "com.google.android.deskclock"
             "com.bbk.calendar" -> "com.google.android.calendar"
@@ -371,12 +423,12 @@ object MonetThemedIconFactory {
         return runCatching { context.packageManager.getApplicationIcon(googlePackage) }.getOrNull()
     }
 
-    private fun coreSystemGlyph(context: Context, packageName: String?): Drawable? {
+    internal fun coreSystemGlyph(context: Context, packageName: String?): Drawable? {
         val resource = when (packageName) {
             "com.android.camera" -> R.drawable.ic_pixel_camera
             "com.vivo.gallery" -> R.drawable.ic_pixel_gallery
             "com.android.contacts" -> R.drawable.ic_pixel_contacts
-            "com.android.dialer.TwelveKeyDialer" -> R.drawable.ic_pixel_phone
+            VIVO_DIALER_CLASS -> R.drawable.ic_pixel_phone
             "com.android.mms" -> R.drawable.ic_pixel_messages
             "com.android.BBKClock" -> R.drawable.ic_pixel_clock
             "com.bbk.calendar" -> R.drawable.ic_pixel_calendar
@@ -391,8 +443,19 @@ object MonetThemedIconFactory {
             "com.vivo.Tips" -> R.drawable.ic_pixel_lightbulb
             else -> return null
         }
-        return context.getDrawable(resource)?.let { InsetDrawable(it, 0.29f) }
+        return moduleContext(context).getDrawable(resource)?.let { InsetDrawable(it, 0.29f) }
     }
+
+    /** Inside hooked apps R.drawable ids point into the module APK, not the host's resources. */
+    private fun moduleContext(context: Context): Context {
+        if (context.packageName == BuildConfig.APPLICATION_ID) return context
+        moduleContext?.let { return it }
+        return context.createPackageContext(BuildConfig.APPLICATION_ID, Context.CONTEXT_IGNORE_SECURITY)
+            .also { moduleContext = it }
+    }
+
+    @Volatile
+    private var moduleContext: Context? = null
 
     private fun isDarkMode(context: Context): Boolean {
         return context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES

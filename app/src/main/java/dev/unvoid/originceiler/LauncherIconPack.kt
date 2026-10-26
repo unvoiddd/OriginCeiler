@@ -33,8 +33,58 @@ internal class LauncherIconPack(private val context: Context) {
 
     @Synchronized
     fun bitmap(component: ComponentName?, packageName: String?, original: Bitmap, source: Drawable?): Bitmap? {
+        val result = packBitmap(component, packageName, original, source) ?: return null
+        return applyEffects(result).also { if (it !== result) result.recycle() }
+    }
+
+    /** User adjustments for any icon coming from the pack: scale, monochrome, inversion, color filter. */
+    private fun applyEffects(icon: Bitmap): Bitmap {
+        val resolver = context.contentResolver
+        val scale = Settings.Global.getInt(resolver, SETTING_SCALE, 100).coerceIn(SCALE_MIN, SCALE_MAX) / 100f
+        val mono = Settings.Global.getInt(resolver, SETTING_MONOCHROME, 0) == 1
+        val invert = Settings.Global.getInt(resolver, SETTING_INVERT, 0) == 1
+        val tint = Settings.Global.getInt(resolver, SETTING_TINT, 0)
+        if (scale == 1f && !mono && !invert && tint == 0) return icon
+        val matrix = ColorMatrix()
+        if (mono || tint != 0) matrix.postConcat(ColorMatrix().apply { setSaturation(0f) })
+        if (invert) {
+            matrix.postConcat(ColorMatrix(floatArrayOf(
+                -1f, 0f, 0f, 0f, 255f,
+                0f, -1f, 0f, 0f, 255f,
+                0f, 0f, -1f, 0f, 255f,
+                0f, 0f, 0f, 1f, 0f
+            )))
+        }
+        if (tint != 0) {
+            // Gray levels mapped onto the chosen color, white stays light so details survive.
+            matrix.postConcat(ColorMatrix(floatArrayOf(
+                Color.red(tint) / 255f, 0f, 0f, 0f, 0f,
+                0f, Color.green(tint) / 255f, 0f, 0f, 0f,
+                0f, 0f, Color.blue(tint) / 255f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f
+            )))
+        }
+        val size = icon.width
+        return runCatching {
+            Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { result ->
+                result.density = icon.density
+                val inset = size * (1f - scale) / 2f
+                Canvas(result).drawBitmap(
+                    icon,
+                    null,
+                    android.graphics.RectF(inset, inset, size - inset, size - inset),
+                    Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+                        colorFilter = ColorMatrixColorFilter(matrix)
+                    }
+                )
+            }
+        }.getOrDefault(icon)
+    }
+
+    private fun packBitmap(component: ComponentName?, packageName: String?, original: Bitmap, source: Drawable?): Bitmap? {
         val size = original.width
         if (size !in 1..2048 || original.height != size) return null
+
         val selected = Settings.Global.getString(context.contentResolver, SETTING_PACK).orEmpty()
         if (selected.isBlank()) return null
         if (selected != activePackage) load(selected)
@@ -235,5 +285,11 @@ internal class LauncherIconPack(private val context: Context) {
         const val SETTING_PACK = "originicons_live_icon_pack"
         const val SETTING_AUTO_RECOLOR = "originicons_live_pack_recolor"
         const val SETTING_REPLACE_BACKGROUND = "originicons_live_pack_background"
+        const val SETTING_SCALE = "originicons_live_pack_scale"
+        const val SETTING_MONOCHROME = "originicons_live_pack_monochrome"
+        const val SETTING_INVERT = "originicons_live_pack_invert"
+        const val SETTING_TINT = "originicons_live_pack_tint"
+        const val SCALE_MIN = 50
+        const val SCALE_MAX = 150
     }
 }

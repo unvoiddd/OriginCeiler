@@ -5,6 +5,7 @@ import android.app.Application
 class OriginIconsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppLanguage.init(this)
         Thread { LsposedScopeSync.sync(applicationInfo.sourceDir) }.start()
         Thread {
             if (runCatching {

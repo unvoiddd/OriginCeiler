@@ -1,0 +1,149 @@
+
+    uniform float2 texSize;
+    uniform float2 sdfTexSize;
+    uniform float2 uBackgroundSize;
+    uniform float2 uContextSize;
+
+    uniform shader sdfTex;
+    uniform shader uBackground;
+    uniform shader uContext;
+
+    uniform int uEdgeLightType;
+    uniform float3 uGeneratorLight1;
+    uniform float3 uGeneratorLight2;
+    uniform float uLightIndensity;
+    uniform float uGlobalIntensity;
+
+    uniform float4 uMaskColor;
+
+    const float PI = 3.1415926;
+    const float4 TINT_COLOR = float4(0);
+    const int BLUR_AMOUNT = 1;
+    const float4 RIM_LIGHT_COLOR = float4(float3(1.0),0.4);
+
+    const float EDGE_DIM = 0.2;
+    const float REFL_OFFSET_MIN = 0.07;
+    const float REFL_OFFSET_MAG = 0.005;
+    const float RERF_DIM = 0.70;
+    const float RERF_MAG = 0.08;
+
+    struct Shared {
+        float EPS;
+        float2 p;
+        float2 UV;
+        float3 f;
+        float d;
+        float2 norm;
+    };
+
+    float4 getSDF(float2 pos){
+        float4 sdf = sdfTex.eval(pos);
+        sdf.x =  sdf.x / (16.0 * sqrt(2.0));
+        sdf.yz = length(sdf.yz) > 1e-6 ? normalize(sdf.yz) : float2(0.0);
+	    return sdf;
+    }
+
+    float lerp(float minV, float maxV, float v) {
+        return saturate((v - minV) / (maxV - minV));
+    }
+
+    float3 blendScreen(float3 a, float3 b) {
+        return 1.0 - (1.0 - a) * (1.0 - b);
+    }
+
+    float3 blendLighten(float3 a, float3 b) {
+        return max(a, b);
+    }
+
+    float3 tintLayer(float3 col, Shared s) {
+        // Apply tint to interior. Linear color mix.
+        float interior = smoothstep(s.EPS, 0.0, s.d);
+        col = mix(col, TINT_COLOR.rgb, TINT_COLOR.a * interior);
+
+        float a = smoothstep(s.EPS, 0.0, s.d);
+        float b = lerp(-EDGE_DIM, 0.0, s.d);
+        float edge = b;
+
+        float3 grad = normalize(float3(s.norm.x, -s.norm.y, 0.0));
+        float lighting1 = max(0.0, dot(grad, normalize(uGeneratorLight1)));
+        float lighting2 = max(0.0, dot(grad, normalize(uGeneratorLight2)));
+
+        float light = lighting1 + lighting2 + 0.4;
+        light = smoothstep(0.0, 1.0, light/1.8);
+        light = mix(-1.0, 2.0, light);
+        light = max(light, 0.0);
+
+        float rimLightIntensity = light * uLightIndensity;
+        float3 rimLight = RIM_LIGHT_COLOR.rgb * RIM_LIGHT_COLOR.a;
+
+        float cosEdge = 1.0 - cos(edge * PI / 2.0);
+        float2 reflectionOffset = (REFL_OFFSET_MIN + REFL_OFFSET_MAG * cosEdge) * s.norm;
+        float3 reflectionColor = saturate(uBackground.eval((s.UV + reflectionOffset) * uBackgroundSize).rgb);
+        reflectionColor = mix(reflectionColor, TINT_COLOR.rgb, TINT_COLOR.a);
+
+        float3 mergedEdgeColor = blendScreen(rimLight, reflectionColor) * rimLightIntensity;
+        float3 edgeColor = blendLighten(col, mergedEdgeColor);
+
+        col = mix(col, edgeColor, cosEdge);
+
+        return col;
+    }
+
+    float3 refractionLayer(float3 col, Shared s) {
+        float boundary = lerp(-RERF_DIM, s.EPS, s.d);
+        boundary = mix(boundary, 0.0, smoothstep(0.0,s.EPS,s.d));
+
+        float cosBoundary = 1.0 - cos(boundary * PI / 2.0);
+
+        float interior = smoothstep(s.EPS, 0.0, s.d);
+
+        float2 offset = -s.norm * RERF_MAG;
+
+        float2 uv = s.UV + offset * interior * cosBoundary;
+
+        float4 blurWarped = uBackground.eval(uv * uBackgroundSize);
+
+        if(blurWarped.a < 0.5){
+            blurWarped = uBackground.eval(s.UV * uBackgroundSize);
+        }
+
+        col = blurWarped.rgb;
+
+        return col;
+    }
+
+    float4 main(float2 texCoord){
+        float2 uv = texCoord / float2(float(texSize.x), float(texSize.y));
+
+        float boxMask = uContext.eval(texCoord).a;
+        float4 baseTex = uBackground.eval(texCoord);
+
+        if(boxMask > 0.0 && baseTex.a > 0.0){
+            float EPS = 2.0 / sdfTexSize.y;
+
+            float4 sdf = getSDF(texCoord);
+
+            Shared s = Shared(EPS, float2(0.0), uv, sdf.rgb, sdf.x, sdf.yz);
+            float3 col = float3(0.);
+
+            col = refractionLayer(col, s);
+
+            if(uEdgeLightType > 0){
+                col = tintLayer(col, s);
+            }
+
+            col = saturate(col);
+            float3 color = mix(baseTex.rgb, col, float3(uGlobalIntensity));
+
+            color *= boxMask;
+            return float4(color.r, color.g, color.b, boxMask);
+        } else{
+            if(baseTex.a < 0.1){
+                float alpha = boxMask * uMaskColor.a;
+                float3 col = uMaskColor.rgb * alpha;
+                return float4(col, alpha);
+            }
+
+            return float4(0.0);
+        }
+    }

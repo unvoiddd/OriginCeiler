@@ -1,0 +1,2327 @@
+[
+  {
+    "version": "3",
+    "style_id": "s1-4x2",
+    "style_group": "s1",
+    "group_default_style": true,
+    "style_type": 0,
+    "default_font": {
+      "font_id": "1",
+      "font_path": "/system/fonts/vivoSansClockVF.ttf",
+      "font_weight": 600
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -4,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "os5_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "os5_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "os5_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "os5_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s3-2x3",
+    "style_group": "s3",
+    "group_default_style": true,
+    "style_type": 0,
+    "default_font": {
+      "font_id": "2",
+      "font_path": "/system/fonts/vivoSansClockVF.ttf",
+      "font_weight": 500
+    },
+    "default_main_color": {
+      "type_id": -4,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 0
+    },
+    "os5_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 0
+    },
+    "os5_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 2
+    },
+    "os5_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 2
+    },
+    "os5_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 3,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 1,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s2-3x2",
+    "style_group": "s2",
+    "group_default_style": true,
+    "style_type": 0,
+    "default_font": {
+      "font_id": "2",
+      "font_path": "/system/fonts/vivoSansClockVF.ttf",
+      "font_weight": 500
+    },
+    "default_main_color": {
+      "type_id": -4,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "os5_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "os5_unfold_location": {
+      "start_row": 0,
+      "start_col": 1,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "os5_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "os5_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 1,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s4-3x2",
+    "style_group": "s4",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "2",
+      "font_path": "/system/fonts/vivoSansClockStencilVF.ttf",
+      "font_weight": 500
+    },
+    "default_main_color": {
+      "type_id": -4,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 0
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s5-4x1",
+    "style_group": "s5",
+    "group_default_style": true,
+    "style_type": 0,
+    "default_font": {
+      "font_id": "2",
+      "font_path": "/system/fonts/vivoSansClockStencilVF.ttf",
+      "font_weight": 500
+    },
+    "default_main_color": {
+      "type_id": -4,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 1,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 2,
+      "start_col": 2,
+      "row_count": 1,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 1,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 1,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "limited_info_widgets": [
+      "com.vivo.systemuiplugin/none",
+      "com.vivo.systemuiplugin/lunar"
+    ],
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s6-2x2",
+    "style_group": "s6",
+    "group_default_style": true,
+    "style_type": 0,
+    "default_font": {
+      "font_id": "2",
+      "font_path": "/system/fonts/vivoSansClockStencilVF.ttf",
+      "font_weight": 500
+    },
+    "default_main_color": {
+      "type_id": -4,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 2,
+      "align": 0
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "limited_info_widgets": [
+      "com.vivo.systemuiplugin/none",
+      "com.vivo.systemuiplugin/lunar"
+    ],
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-4x4",
+    "style_group": "s7",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-4x3",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-4x5",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-4x6",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 0,
+    "appwidget_height": 0
+  },
+  {
+    "version": "3",
+    "style_id": "s7-4x2",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-3x2",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-3x3",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s7-3x4",
+    "style_group": "s7",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s8-2x5",
+    "style_group": "s8",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s8-2x4",
+    "style_group": "s8",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s8-2x6",
+    "style_group": "s8",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s8-3x5",
+    "style_group": "s8",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s8-3x6",
+    "style_group": "s8",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s8-4x5",
+    "style_group": "s8",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s8-4x6",
+    "style_group": "s8",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s9-2x4",
+    "style_group": "s9",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s9-2x5",
+    "style_group": "s9",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s9-2x6",
+    "style_group": "s9",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s9-3x5",
+    "style_group": "s9",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 3,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s9-3x6",
+    "style_group": "s9",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 3,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s9-4x5",
+    "style_group": "s9",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s9-4x6",
+    "style_group": "s9",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "6",
+      "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 0
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 0
+    },
+    "has_sub_color": 1,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s10-4x4",
+    "style_group": "s10",
+    "group_default_style": true,
+    "style_type": 1,
+    "front_type": 2,
+    "default_font": {
+      "font_id": "8",
+      "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 1,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 1,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s10-4x5",
+    "style_group": "s10",
+    "group_default_style": false,
+    "style_type": 1,
+    "front_type": 2,
+    "default_font": {
+      "font_id": "8",
+      "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 1,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 1,
+      "start_col": 2,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s10-4x6",
+    "style_group": "s10",
+    "group_default_style": false,
+    "style_type": 1,
+    "front_type": 2,
+    "default_font": {
+      "font_id": "8",
+      "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 1,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 1,
+      "start_col": 2,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s11-2x4",
+    "style_group": "s11",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "8",
+      "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 1,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 4,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s11-2x5",
+    "style_group": "s11",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "8",
+      "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 1,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 5,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s11-2x6",
+    "style_group": "s11",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "8",
+      "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_sub_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 1,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 3,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 5,
+      "row_count": 6,
+      "col_count": 2,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 0,
+    "none_widget_change_height": 0,
+    "appwidget_width": 2,
+    "appwidget_height": 2
+  },
+  {
+    "version": "3",
+    "style_id": "s12-4x4",
+    "style_group": "s12",
+    "group_default_style": true,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 4,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s12-4x3",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 3,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s12-4x5",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 5,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s12-4x6",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 6,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 0,
+    "appwidget_height": 0
+  },
+  {
+    "version": "3",
+    "style_id": "s12-4x2",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 2,
+      "col_count": 4,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s12-3x2",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 2,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s12-3x3",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 3,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  },
+  {
+    "version": "3",
+    "style_id": "s12-3x4",
+    "style_group": "s12",
+    "group_default_style": false,
+    "style_type": 1,
+    "default_font": {
+      "font_id": "9",
+      "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+      "font_weight": 850
+    },
+    "default_main_color": {
+      "type_id": -2,
+      "progress": 0,
+      "fixed_color": "#A846b2ff"
+    },
+    "default_location": {
+      "start_row": 0,
+      "start_col": 0,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_unfold_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_portrait_location": {
+      "start_row": 0,
+      "start_col": 2,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "default_pad_landscape_location": {
+      "start_row": 0,
+      "start_col": 4,
+      "row_count": 4,
+      "col_count": 3,
+      "align": 2
+    },
+    "has_sub_color": 0,
+    "support_info_widget": 1,
+    "none_widget_change_height": 0,
+    "appwidget_width": 4,
+    "appwidget_height": 1
+  }
+]

@@ -20,3 +20,6 @@ com.bbk.theme
 com.vivo.pay
 com.vivo.fingerprintui
 com.vivo.faceui
+com.vivo.card
+com.vivo.permissionmanager
+com.android.permissioncontroller

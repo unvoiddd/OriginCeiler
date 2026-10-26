@@ -1,0 +1,18 @@
+{
+  "source_apk_sha256": "c385badb80c034556e0bd7e524a88b55f920fd42c2bcea918f765d7414548faf",
+  "adaptation": "Original binary layouts/resources and full original DEX archive, isolated to load constraint layout classes only. Vendor services are not started. Clock lifecycle and material hooks are adapted to the ColorOS host.",
+  "layouts": {
+    "view_time_s1": "res/Uvk.xml",
+    "view_time_s10": "res/Pth.xml",
+    "view_time_s11": "res/0b8.xml",
+    "view_time_s12": "res/gKz.xml",
+    "view_time_s2": "res/CMN.xml",
+    "view_time_s3": "res/yfg.xml",
+    "view_time_s5": "res/dEf.xml",
+    "view_time_s6": "res/tqp.xml",
+    "view_time_s7": "res/sdq.xml",
+    "view_time_s8": "res/VSr.xml",
+    "view_time_s9": "res/xbQ.xml"
+  },
+  "runtime_sha256": "be647ffce9b4ffb723800c1f1298915fc99b4ba7ca1e312a4b3edbc56afdd619"
+}

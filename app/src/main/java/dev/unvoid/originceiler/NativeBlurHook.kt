@@ -132,9 +132,9 @@ class NativeBlurHook {
             ?: (readField(owner, "mContainer") as? View)?.context
     }
 
-    private fun settingScale(context: Context, key: String): Float {
-        return Settings.Global.getInt(context.contentResolver, key, 100).coerceIn(0, 200) / 100f
-    }
+    /** Blur scaling moved to [LiquidVivoGlassHook]; only the panel-zoom switch remains here. */
+    @Suppress("UNUSED_PARAMETER")
+    private fun settingScale(context: Context, key: String): Float = 1f
 
     private fun panelScaleDisabled(context: Context): Boolean {
         return Settings.Global.getInt(context.contentResolver, SETTING_DISABLE_PANEL_SCALE, 0) == 1

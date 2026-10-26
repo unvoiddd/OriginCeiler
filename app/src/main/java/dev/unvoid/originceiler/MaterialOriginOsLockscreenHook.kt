@@ -59,8 +59,7 @@ class MaterialOriginOsLockscreenHook {
             if (installedClasses.put(type, true) != null) return
         }
         when (type.name) {
-            QUICK_TOOL_CLASS -> installQuickTools(type)
-            QUICK_TOOL_WRAPPER_CLASS -> installQuickToolWrapper(type)
+            // Keep stock camera and flashlight buttons completely original
             KEYGUARD_VIEW_CLASS -> installKeyguardView(type)
             TIME_CONTAINER_CLASS -> installTimeContainer(type)
         }
@@ -302,36 +301,59 @@ class MaterialOriginOsLockscreenHook {
     }
 
     private fun installKeyguardView(type: Class<*>) {
-        XposedBridge.hookAllMethods(type, "onFinishInflate", object : XC_MethodHook(Int.MIN_VALUE) {
+        val hook = object : XC_MethodHook(Int.MIN_VALUE) {
             override fun afterHookedMethod(param: MethodHookParam) {
                 val root = param.thisObject as? View ?: return
-                if (!enabled(root.context)) return
-                val parent = findField(param.thisObject, "mMainContents") as? ViewGroup ?: return
-                val previous = synchronized(clockViews) { clockViews[root] }
-                if (previous?.parent === parent) return
-                (previous?.parent as? ViewGroup)?.removeView(previous)
-                val clock = ExpressiveLockscreenClockView(root.context)
-                clock.bindNativeClockViews(
-                    listOfNotNull(
-                        findField(param.thisObject, "mTimeContainer") as? View,
-                        findField(param.thisObject, "mTimeContainerDeep") as? View
-                    )
-                )
-                val layoutParams = RelativeLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                parent.addView(clock, layoutParams)
-                synchronized(clockViews) { clockViews[root] = clock }
+                ensureCustomClock(root)
             }
-        })
+        }
+        listOf("onFinishInflate", "onAttachedToWindow", "onWindowVisibilityChanged").forEach { name ->
+            XposedBridge.hookAllMethods(type, name, hook)
+        }
+    }
+
+    private fun ensureCustomClock(root: View) {
+        val enabled = customClockEnabled(root.context) || enabled(root.context)
+        val parent = findField(root, "mMainContents") as? ViewGroup ?: return
+        val existing = synchronized(clockViews) { clockViews[root] }
+
+        if (!enabled) {
+            existing?.visibility = View.GONE
+            return
+        }
+
+        if (existing != null && existing.parent === parent) {
+            existing.visibility = View.VISIBLE
+            return
+        }
+
+        existing?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        val clock = CustomLockscreenClockHostView(root.context)
+        clock.bindNativeClockViews(
+            listOfNotNull(
+                findField(root, "mTimeContainer") as? View,
+                findField(root, "mTimeContainerDeep") as? View
+            )
+        )
+        var cur: android.view.ViewParent? = parent
+        while (cur is ViewGroup) {
+            cur.clipChildren = false
+            cur.clipToPadding = false
+            cur = cur.parent
+        }
+        val layoutParams = RelativeLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        parent.addView(clock, layoutParams)
+        synchronized(clockViews) { clockViews[root] = clock }
     }
 
     private fun installTimeContainer(type: Class<*>) {
         XposedBridge.hookAllMethods(type, "dispatchDraw", object : XC_MethodHook(Int.MAX_VALUE) {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val container = param.thisObject as? View ?: return
-                if (!enabled(container.context)) return
+                if (!customClockEnabled(container.context) && !enabled(container.context)) return
                 val root = keyguardAncestor(container) ?: return
                 val clock = synchronized(clockViews) { clockViews[root] } ?: return
                 if (clock.isActive()) param.result = null
@@ -360,6 +382,10 @@ class MaterialOriginOsLockscreenHook {
 
     private fun enabled(context: Context): Boolean {
         return Settings.Global.getInt(context.contentResolver, SETTING_ENABLED, 0) == 1
+    }
+
+    private fun customClockEnabled(context: Context): Boolean {
+        return Settings.Global.getInt(context.contentResolver, SETTING_CUSTOM_CLOCK, 0) == 1
     }
 
     private class ExpressiveAffordanceDrawable(pathData: String) : Drawable() {
@@ -434,16 +460,15 @@ class MaterialOriginOsLockscreenHook {
 
     companion object {
         const val SETTING_ENABLED = "originroottoolbox_material_originos_lockscreen"
+        const val SETTING_CUSTOM_CLOCK = "originroottoolbox_custom_lockscreen_clock"
 
         private val classNames = setOf(
-            QUICK_TOOL_CLASS,
-            QUICK_TOOL_WRAPPER_CLASS,
             KEYGUARD_VIEW_CLASS,
             TIME_CONTAINER_CLASS
         )
         private val installedLoaders = Collections.synchronizedMap(WeakHashMap<ClassLoader, Boolean>())
         private val installedClasses = Collections.synchronizedMap(WeakHashMap<Class<*>, Boolean>())
-        private val clockViews = Collections.synchronizedMap(WeakHashMap<View, ExpressiveLockscreenClockView>())
+        private val clockViews = Collections.synchronizedMap(WeakHashMap<View, CustomLockscreenClockHostView>())
         private val pressedButtons = Collections.synchronizedMap(WeakHashMap<View, Boolean>())
         private val pendingQuickStyles = Collections.synchronizedMap(WeakHashMap<Any, Boolean>())
         private val quickButtonEnforcers = Collections.synchronizedMap(WeakHashMap<View, ViewTreeObserver.OnPreDrawListener>())

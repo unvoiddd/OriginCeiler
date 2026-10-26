@@ -1,0 +1,90 @@
+[
+  {
+    "font_id": "origin",
+    "font_path": "/system/fonts/vivoSansCondVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 400
+  },
+  {
+    "font_id": "0",
+    "font_path": "/system/fonts/vivoSansClockVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 400
+  },
+  {
+    "font_id": "1",
+    "font_path": "/system/fonts/vivoSansClockRoundedVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 600
+  },
+  {
+    "font_id": "2",
+    "font_path": "/system/fonts/vivoSansClockStencilVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 600
+  },
+  {
+    "font_id": "3",
+    "font_path": "/system/fonts/vivoSansClockSerifVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 400
+  },
+  {
+    "font_id": "4",
+    "font_path": "/system/fonts/vivoSansClockSlabVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 400
+  },
+  {
+    "font_id": "5",
+    "font_path": "/system/fonts/vivoSansClockInlineVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 600
+  },
+  {
+    "font_id": "6",
+    "font_path": "/system/fonts/vivoSansClockHAVF-OS7.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 850
+  },
+  {
+    "font_id": "7",
+    "font_path": "/system/fonts/vivoSansClockHASerifVF-OS7.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 850
+  },
+  {
+    "font_id": "8",
+    "font_path": "/system/fonts/vivoSansClockSilkVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 850
+  },
+  {
+    "font_id": "9",
+    "font_path": "/system/fonts/vivoSansClockHASquareVF.ttf",
+    "support_weight": 1,
+    "weight_min": 100,
+    "weight_max": 850,
+    "weight_default": 850
+  }
+]

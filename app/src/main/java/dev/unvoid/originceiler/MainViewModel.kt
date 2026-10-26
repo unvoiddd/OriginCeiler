@@ -3,6 +3,7 @@ package dev.unvoid.originceiler
 import android.app.Application
 import android.graphics.Color
 import android.provider.Settings
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,11 @@ data class UiState(
     val nativeAospThemedIcons: Boolean = false,
     val monetIconScale: Float = 100f,
     val launcherIconSize: Float = 100f,
+    val launcherCustomGridEnabled: Boolean = false,
+    val launcherGridColumns: Int = 4,
+    val launcherGridRows: Int = 7,
+    val launcherOriginalColumns: Int = 4,
+    val launcherOriginalRows: Int = 7,
     val restoreGoogleAssistant: Boolean = false,
     val bypassGeminiRegionalRestrictions: Boolean = false,
     val removePackageInstallerAfterReboot: Boolean = false,
@@ -57,6 +63,29 @@ data class UiState(
     val materialOriginOsGoogleSansFlex: Boolean = false,
     val materialOriginOsVolume: Boolean = false,
     val materialOriginOsLockscreen: Boolean = false,
+    val customLockscreenClock: Boolean = false,
+    val customLockscreenClockStyle: String = "s1-4x2",
+    val customLockscreenClockColor: Int = 0,
+    val customLockscreenClockGlass: Boolean = false,
+    val clockGlassBlur: Float = 4f,
+    val clockGlassRefract: Float = 6f,
+    val clockGlassDispersion: Float = 35f,
+    val clockGlassHighlight: Float = 75f,
+    val clockGlassFalloff: Float = 2f,
+    val clockGlassLightAngle: Float = 45f,
+    val clockGlassTintStrength: Float = 25f,
+    val lockscreenQuickToolGlass: Boolean = false,
+    val popOutButtons: Boolean = false,
+    val shakePhysics: Boolean = false,
+    /** LiquidVivo glass settings, keyed by their Settings.Global name. */
+    val liquidVivo: Map<String, Int> = emptyMap(),
+    /** Kyant iOS-26 glass settings, keyed by their Settings.Global name. */
+    val kyantGlass: Map<String, Int> = emptyMap(),
+    val popOutDepth: Float = PopOutButtonsHook.DEFAULT_DEPTH,
+    val popOutVolumeUpY: Float = PopOutButtonsHook.DEFAULT_VOLUME_UP_Y,
+    val popOutVolumeDownY: Float = PopOutButtonsHook.DEFAULT_VOLUME_DOWN_Y,
+    val popOutPowerY: Float = PopOutButtonsHook.DEFAULT_POWER_Y,
+    val popOutLeftSide: Boolean = false,
     val aospStatusbar: Boolean = false,
     val statusbarWifiPack: Int = 0,
     val statusbarBatteryPack: Int = 0,
@@ -71,23 +100,6 @@ data class UiState(
     val statusBarClockX: Float = 0f,
     val statusBarSystemIconsScale: Float = 100f,
     val controlCenterIconPack: Int = 0,
-    val liquidGlassControlCenter: Boolean = false,
-    val liquidGlassBlur: Float = 100f,
-    val liquidGlassRefraction: Float = 100f,
-    val liquidGlassDispersion: Float = 100f,
-    val liquidGlassSaturation: Float = 120f,
-    val liquidGlassTint: Float = 100f,
-    val liquidGlassEdge: Float = 100f,
-    val liquidGlassQuality: Float = 35f,
-    val liquidGlassCornerRadius: Float = 0f,
-    val liquidGlassTilesBlur: Float = 100f,
-    val liquidGlassTilesTint: Float = 100f,
-    val liquidGlassPlayerBlur: Float = 100f,
-    val liquidGlassPlayerTint: Float = 100f,
-    val liquidGlassSliderBlur: Float = 100f,
-    val liquidGlassSliderTint: Float = 100f,
-    val liquidGlassButtonBlur: Float = 100f,
-    val liquidGlassButtonTint: Float = 100f,
     val nativeBlurControlCenter: Float = 100f,
     val nativeBlurNotifications: Float = 100f,
     val nativeBlurPanel: Float = 100f,
@@ -150,6 +162,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             nativeAospThemedIcons = Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) == 1,
             monetIconScale = Settings.Global.getInt(application.contentResolver, "originicons_monet_icon_scale", 100).toFloat(),
             launcherIconSize = Settings.Global.getInt(application.contentResolver, "originroottoolbox_launcher_icon_size", 100).toFloat(),
+            launcherCustomGridEnabled = Settings.Global.getInt(application.contentResolver, LauncherGridHook.SETTING_CUSTOM_GRID_ENABLED, 0) == 1,
+            launcherGridColumns = Settings.Global.getInt(application.contentResolver, LauncherGridHook.SETTING_GRID_COLUMNS, 4).coerceAtLeast(1),
+            launcherGridRows = Settings.Global.getInt(application.contentResolver, LauncherGridHook.SETTING_GRID_ROWS, 7).coerceAtLeast(1),
+            launcherOriginalColumns = Settings.Global.getInt(application.contentResolver, LauncherGridHook.SETTING_ORIGINAL_COLUMNS, 4).coerceAtLeast(1),
+            launcherOriginalRows = Settings.Global.getInt(application.contentResolver, LauncherGridHook.SETTING_ORIGINAL_ROWS, 7).coerceAtLeast(1),
             restoreGoogleAssistant = Settings.Global.getInt(application.contentResolver, "originroottoolbox_restore_google_assistant", 0) == 1,
             bypassGeminiRegionalRestrictions = Settings.Global.getInt(application.contentResolver, "originroottoolbox_bypass_gemini_region", 0) == 1,
             removePackageInstallerAfterReboot = Settings.Global.getInt(application.contentResolver, "originroottoolbox_remove_package_installer_boot", 0) == 1,
@@ -172,6 +189,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             materialOriginOsGoogleSansFlex = Settings.Global.getInt(application.contentResolver, MaterialOriginOsStatusFontHook.SETTING_ENABLED, 0) == 1,
             materialOriginOsVolume = Settings.Global.getInt(application.contentResolver, MaterialOriginOsHook.SETTING_VOLUME, 0) == 1,
             materialOriginOsLockscreen = Settings.Global.getInt(application.contentResolver, MaterialOriginOsLockscreenHook.SETTING_ENABLED, 0) == 1,
+            customLockscreenClock = Settings.Global.getInt(application.contentResolver, MaterialOriginOsLockscreenHook.SETTING_CUSTOM_CLOCK, 0) == 1 || Settings.Global.getInt(application.contentResolver, MaterialOriginOsLockscreenHook.SETTING_ENABLED, 0) == 1,
+            customLockscreenClockStyle = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_STYLE) ?: LockscreenClockCatalog.DEFAULT_STYLE_ID,
+            customLockscreenClockColor = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_COLOR)?.toLongOrNull()?.toInt() ?: 0,
+            customLockscreenClockGlass = Settings.Global.getInt(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS, 0) == 1,
+            clockGlassBlur = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_BLUR)?.toFloatOrNull() ?: 4f,
+            clockGlassRefract = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_REFRACT)?.toFloatOrNull() ?: 6f,
+            clockGlassDispersion = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_DISPERSION)?.toFloatOrNull() ?: 35f,
+            clockGlassHighlight = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_HIGHLIGHT)?.toFloatOrNull() ?: 75f,
+            clockGlassFalloff = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_FALLOFF)?.toFloatOrNull() ?: 2f,
+            clockGlassLightAngle = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_LIGHT_ANGLE)?.toFloatOrNull() ?: 45f,
+            clockGlassTintStrength = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_TINT_STRENGTH)?.toFloatOrNull() ?: 25f,
+            lockscreenQuickToolGlass = Settings.Global.getInt(application.contentResolver, LockscreenQuickToolGlassHook.SETTING_ENABLED, 0) == 1,
+            popOutButtons = Settings.Global.getInt(application.contentResolver, PopOutButtonsHook.SETTING_ENABLED, 0) == 1,
+            shakePhysics = Settings.Global.getInt(application.contentResolver, ShakePhysicsHook.SETTING_ENABLED, 0) == 1,
+            liquidVivo = readLiquidVivo(application),
+            kyantGlass = KyantGlass.DEFAULTS.keys.mapNotNull { key ->
+                runCatching { Settings.Global.getInt(application.contentResolver, key) }.getOrNull()?.let { key to it }
+            }.toMap(),
+            popOutDepth = Settings.Global.getString(application.contentResolver, PopOutButtonsHook.SETTING_DEPTH)?.toFloatOrNull() ?: PopOutButtonsHook.DEFAULT_DEPTH,
+            popOutVolumeUpY = Settings.Global.getString(application.contentResolver, PopOutButtonsHook.SETTING_VOLUME_UP_Y)?.toFloatOrNull() ?: PopOutButtonsHook.DEFAULT_VOLUME_UP_Y,
+            popOutVolumeDownY = Settings.Global.getString(application.contentResolver, PopOutButtonsHook.SETTING_VOLUME_DOWN_Y)?.toFloatOrNull() ?: PopOutButtonsHook.DEFAULT_VOLUME_DOWN_Y,
+            popOutPowerY = Settings.Global.getString(application.contentResolver, PopOutButtonsHook.SETTING_POWER_Y)?.toFloatOrNull() ?: PopOutButtonsHook.DEFAULT_POWER_Y,
+            popOutLeftSide = Settings.Global.getInt(application.contentResolver, PopOutButtonsHook.SETTING_LEFT_SIDE, 0) == 1,
             aospStatusbar = Settings.Global.getInt(application.contentResolver, "originicons_aosp_statusbar", 0) == 1,
             statusbarWifiPack = Settings.Global.getInt(application.contentResolver, "originicons_statusbar_wifi_pack", 0),
             statusbarBatteryPack = Settings.Global.getInt(application.contentResolver, "originicons_statusbar_battery_pack", 0),
@@ -186,23 +226,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             statusBarClockX = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_clock_x", 0).toFloat(),
             statusBarSystemIconsScale = Settings.Global.getInt(application.contentResolver, "originroottoolbox_statusbar_system_icons_scale", 100).toFloat(),
             controlCenterIconPack = Settings.Global.getInt(application.contentResolver, "originicons_control_center_icon_pack", 0),
-            liquidGlassControlCenter = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_CONTROL_CENTER, 0) == 1,
-            liquidGlassBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_BLUR, 100).toFloat(),
-            liquidGlassRefraction = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_REFRACTION, 100).toFloat(),
-            liquidGlassDispersion = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_DISPERSION, 100).toFloat(),
-            liquidGlassSaturation = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_SATURATION, 120).toFloat(),
-            liquidGlassTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_TINT, 100).toFloat(),
-            liquidGlassEdge = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_EDGE, 100).toFloat(),
-            liquidGlassQuality = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_QUALITY, 35).toFloat(),
-            liquidGlassCornerRadius = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_CC_RADIUS, 0).toFloat(),
-            liquidGlassTilesBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_TILES_BLUR, 100).toFloat(),
-            liquidGlassTilesTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_TILES_TINT, 100).toFloat(),
-            liquidGlassPlayerBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_PLAYER_BLUR, 100).toFloat(),
-            liquidGlassPlayerTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_PLAYER_TINT, 100).toFloat(),
-            liquidGlassSliderBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_SLIDER_BLUR, 100).toFloat(),
-            liquidGlassSliderTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_SLIDER_TINT, 100).toFloat(),
-            liquidGlassButtonBlur = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_BUTTON_BLUR, 100).toFloat(),
-            liquidGlassButtonTint = Settings.Global.getInt(application.contentResolver, ShadeLiquidGlassHook.SETTING_BUTTON_TINT, 100).toFloat(),
             nativeBlurControlCenter = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_CONTROL_CENTER_BLUR, 100).toFloat(),
             nativeBlurNotifications = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_NOTIFICATIONS_BLUR, 100).toFloat(),
             nativeBlurPanel = Settings.Global.getInt(application.contentResolver, NativeBlurHook.SETTING_PANEL_BLUR, 100).toFloat(),
@@ -328,115 +351,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setLiquidGlassControlCenter(enabled: Boolean) {
-        viewModelScope.launch {
-            mutableState.value = mutableState.value.copy(applying = true, status = "Applying Liquid Glass Control Center…", success = null)
-            val result = withContext(Dispatchers.IO) { installer.setLiquidGlassControlCenter(enabled) }
-            if (result.success) mutableState.value = mutableState.value.copy(liquidGlassControlCenter = enabled)
-            mutableState.value = mutableState.value.copy(
-                applying = false,
-                status = if (result.success) "Liquid Glass Control Center applied" else "Unable to apply Liquid Glass Control Center",
-                success = result.success
-            )
-        }
-    }
-
-    fun setLiquidGlassBlur(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassBlur = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_BLUR, adjusted.toInt())
-    }
-
-    fun setLiquidGlassRefraction(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassRefraction = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_REFRACTION, adjusted.toInt())
-    }
-
-    fun setLiquidGlassDispersion(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassDispersion = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_DISPERSION, adjusted.toInt())
-    }
-
-    fun setLiquidGlassSaturation(value: Float) {
-        val adjusted = value.coerceIn(50f, 180f)
-        mutableState.value = mutableState.value.copy(liquidGlassSaturation = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_SATURATION, adjusted.toInt())
-    }
-
-    fun setLiquidGlassTint(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassTint = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_TINT, adjusted.toInt())
-    }
-
-    fun setLiquidGlassEdge(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassEdge = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_EDGE, adjusted.toInt())
-    }
-
-    fun setLiquidGlassCornerRadius(value: Float) {
-        val adjusted = value.coerceIn(0f, 100f)
-        mutableState.value = mutableState.value.copy(liquidGlassCornerRadius = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_CC_RADIUS, adjusted.toInt())
-    }
-
-    fun setLiquidGlassQuality(value: Float) {
-        val adjusted = value.coerceIn(20f, 50f)
-        mutableState.value = mutableState.value.copy(liquidGlassQuality = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_QUALITY, adjusted.toInt())
-    }
-
-    fun setLiquidGlassTilesBlur(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassTilesBlur = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_TILES_BLUR, adjusted.toInt())
-    }
-
-    fun setLiquidGlassTilesTint(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassTilesTint = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_TILES_TINT, adjusted.toInt())
-    }
-
-    fun setLiquidGlassPlayerBlur(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassPlayerBlur = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_PLAYER_BLUR, adjusted.toInt())
-    }
-
-    fun setLiquidGlassPlayerTint(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassPlayerTint = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_PLAYER_TINT, adjusted.toInt())
-    }
-
-    fun setLiquidGlassSliderBlur(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassSliderBlur = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_SLIDER_BLUR, adjusted.toInt())
-    }
-
-    fun setLiquidGlassSliderTint(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassSliderTint = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_SLIDER_TINT, adjusted.toInt())
-    }
-
-    fun setLiquidGlassButtonBlur(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassButtonBlur = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_BUTTON_BLUR, adjusted.toInt())
-    }
-
-    fun setLiquidGlassButtonTint(value: Float) {
-        val adjusted = value.coerceIn(0f, 200f)
-        mutableState.value = mutableState.value.copy(liquidGlassButtonTint = adjusted)
-        persistLiquidGlassSetting(ShadeLiquidGlassHook.SETTING_BUTTON_TINT, adjusted.toInt())
-    }
-
     fun setNativeBlurTuner(enabled: Boolean) {
         viewModelScope.launch {
             mutableState.value = mutableState.value.copy(applying = true, status = "Applying native blur tuner…", success = null)
@@ -552,15 +466,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         liquidGlassSettingJobs[key] = viewModelScope.launch {
             delay(90)
             withContext(Dispatchers.IO) { installer.setNativeBlurParameter(key, value) }
-            liquidGlassSettingJobs.remove(key)
-        }
-    }
-
-    private fun persistLiquidGlassSetting(key: String, value: Int) {
-        liquidGlassSettingJobs.remove(key)?.cancel()
-        liquidGlassSettingJobs[key] = viewModelScope.launch {
-            delay(90)
-            withContext(Dispatchers.IO) { installer.setLiquidGlassParameter(key, value) }
             liquidGlassSettingJobs.remove(key)
         }
     }
@@ -719,6 +624,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         launcherIconSizeJob = viewModelScope.launch {
             delay(70)
             withContext(Dispatchers.IO) { installer.setLauncherIconSize(size) }
+        }
+    }
+
+    fun setLauncherGridColumns(cols: Int) {
+        mutableState.value = mutableState.value.copy(launcherGridColumns = cols.coerceAtLeast(1))
+    }
+
+    fun setLauncherGridRows(rows: Int) {
+        mutableState.value = mutableState.value.copy(launcherGridRows = rows.coerceAtLeast(1))
+    }
+
+    fun setLauncherGridPreset(cols: Int, rows: Int) {
+        mutableState.value = mutableState.value.copy(
+            launcherGridColumns = cols.coerceAtLeast(1),
+            launcherGridRows = rows.coerceAtLeast(1)
+        )
+    }
+
+    fun applyLauncherGrid() {
+        viewModelScope.launch {
+            val cols = mutableState.value.launcherGridColumns
+            val rows = mutableState.value.launcherGridRows
+            val result = withContext(Dispatchers.IO) {
+                installer.applyLauncherGrid(cols, rows)
+            }
+            if (result.success) {
+                val origCols = Settings.Global.getInt(getApplication<Application>().contentResolver, LauncherGridHook.SETTING_ORIGINAL_COLUMNS, 4)
+                val origRows = Settings.Global.getInt(getApplication<Application>().contentResolver, LauncherGridHook.SETTING_ORIGINAL_ROWS, 7)
+                mutableState.value = mutableState.value.copy(
+                    launcherCustomGridEnabled = true,
+                    launcherOriginalColumns = origCols,
+                    launcherOriginalRows = origRows
+                )
+            }
+            if (result.message.isNotBlank()) {
+                Toast.makeText(getApplication(), result.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun resetLauncherGrid() {
+        viewModelScope.launch {
+            val origCols = mutableState.value.launcherOriginalColumns
+            val origRows = mutableState.value.launcherOriginalRows
+            val result = withContext(Dispatchers.IO) {
+                installer.resetLauncherGrid()
+            }
+            if (result.success) {
+                mutableState.value = mutableState.value.copy(
+                    launcherCustomGridEnabled = false,
+                    launcherGridColumns = origCols,
+                    launcherGridRows = origRows
+                )
+            }
+            if (result.message.isNotBlank()) {
+                Toast.makeText(getApplication(), result.message, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -1032,6 +994,255 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setCustomLockscreenClock(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(applying = true, status = "Applying Custom lockscreen clock…", success = null)
+            val result = withContext(Dispatchers.IO) { installer.setCustomLockscreenClock(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(customLockscreenClock = enabled)
+            mutableState.value = mutableState.value.copy(
+                applying = false,
+                status = if (result.success) "Custom lockscreen clock applied" else "Unable to apply Custom lockscreen clock",
+                success = result.success
+            )
+        }
+    }
+
+    fun setCustomLockscreenClockStyle(styleId: String) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(customLockscreenClockStyle = styleId)
+            withContext(Dispatchers.IO) { installer.setCustomLockscreenClockStyle(styleId) }
+        }
+    }
+
+    fun setCustomLockscreenClockColor(color: Int) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(customLockscreenClockColor = color)
+            withContext(Dispatchers.IO) { installer.setCustomLockscreenClockColor(color) }
+        }
+    }
+
+    fun setCustomLockscreenClockGlass(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(customLockscreenClockGlass = enabled)
+            withContext(Dispatchers.IO) { installer.setCustomLockscreenClockGlass(enabled) }
+        }
+    }
+
+    fun setClockGlassBlur(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassBlur = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_BLUR, value)
+        }
+    }
+
+    fun setClockGlassRefract(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassRefract = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_REFRACT, value)
+        }
+    }
+
+    fun setClockGlassDispersion(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassDispersion = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_DISPERSION, value)
+        }
+    }
+
+    fun setClockGlassHighlight(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassHighlight = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_HIGHLIGHT, value)
+        }
+    }
+
+    fun setClockGlassFalloff(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassFalloff = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_FALLOFF, value)
+        }
+    }
+
+    fun setClockGlassLightAngle(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassLightAngle = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_LIGHT_ANGLE, value)
+        }
+    }
+
+    fun setClockGlassTintStrength(value: Float) {
+        mutableState.value = mutableState.value.copy(clockGlassTintStrength = value)
+        viewModelScope.launch(Dispatchers.IO) {
+            installer.setCustomLockscreenClockParam(CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_TINT_STRENGTH, value)
+        }
+    }
+
+    fun liquidVivo(key: String, default: Int): Int = mutableState.value.liquidVivo[key] ?: default
+
+    fun setLiquidVivo(key: String, value: Int) {
+        mutableState.value = mutableState.value.copy(liquidVivo = mutableState.value.liquidVivo + (key to value))
+        liquidGlassSettingJobs.remove(key)?.cancel()
+        liquidGlassSettingJobs[key] = viewModelScope.launch {
+            delay(60)
+            withContext(Dispatchers.IO) { installer.setLiquidVivoParameter(key, value) }
+            liquidGlassSettingJobs.remove(key)
+        }
+    }
+
+    fun kyantGlass(key: String): Int = mutableState.value.kyantGlass[key] ?: KyantGlass.DEFAULTS[key] ?: 0
+
+    fun setKyantGlass(key: String, value: Int) {
+        mutableState.value = mutableState.value.copy(kyantGlass = mutableState.value.kyantGlass + (key to value))
+        liquidGlassSettingJobs.remove(key)?.cancel()
+        liquidGlassSettingJobs[key] = viewModelScope.launch {
+            delay(60)
+            withContext(Dispatchers.IO) { installer.setLiquidVivoParameter(key, value) }
+            liquidGlassSettingJobs.remove(key)
+        }
+    }
+
+    /** Applies Kyant's "Clear" button look; switches and the shade blur stay as they are. */
+    fun resetKyantGlassLook() {
+        KyantGlass.CLEAR_PRESET.forEach { (k, v) -> setKyantGlass(k, v) }
+    }
+
+    fun applyKyantGlassPreset(preset: Map<String, Int>) {
+        preset.forEach { (k, v) -> setKyantGlass(k, v) }
+    }
+
+    private val glassExportTag = "originceiler-glass"
+
+    /** Copies every look setting (not the surface switches) to the clipboard as JSON. */
+    fun exportKyantGlass() {
+        val json = org.json.JSONObject()
+        json.put("format", glassExportTag)
+        json.put("version", 1)
+        val values = org.json.JSONObject()
+        KyantGlass.LOOK_KEYS.sorted().forEach { key -> values.put(key.removePrefix(KyantGlass.PREFIX), kyantGlass(key)) }
+        json.put("values", values)
+        val clipboard = getApplication<Application>().getSystemService(android.content.ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Liquid Glass", json.toString()))
+        android.widget.Toast.makeText(getApplication<Application>(), "Glass settings copied", android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    /** Applies glass settings from the clipboard; only known look keys, values clamped by the hooks. */
+    fun importKyantGlass() {
+        val clipboard = getApplication<Application>().getSystemService(android.content.ClipboardManager::class.java)
+        val text = clipboard?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(getApplication<Application>())?.toString()
+        val count = runCatching {
+            val json = org.json.JSONObject(text ?: "")
+            require(json.optString("format") == glassExportTag)
+            val values = json.getJSONObject("values")
+            var n = 0
+            KyantGlass.LOOK_KEYS.forEach { key ->
+                val short = key.removePrefix(KyantGlass.PREFIX)
+                if (values.has(short)) {
+                    setKyantGlass(key, values.getInt(short))
+                    n++
+                }
+            }
+            n
+        }.getOrNull()
+        val message = if (count != null && count > 0) "Imported $count glass settings" else "No glass settings in the clipboard"
+        android.widget.Toast.makeText(getApplication<Application>(), message, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    fun resetLiquidVivoTuning() {
+        val defaults = buildMap {
+            put(LiquidVivoGlassHook.KEY_GLASS_OPACITY, LiquidVivoGlassHook.DEFAULT_GLASS_OPACITY)
+            put(LiquidVivoGlassHook.KEY_GLASS_RADIUS, LiquidVivoGlassHook.DEFAULT_GLASS_RADIUS)
+            LiquidVivoGlassHook.Scene.entries.forEach {
+                put(LiquidVivoGlassHook.radiusKey(it), LiquidVivoGlassHook.DEFAULT_SCALE)
+                put(LiquidVivoGlassHook.alphaKey(it), LiquidVivoGlassHook.DEFAULT_SCALE)
+            }
+        }
+        defaults.forEach { (k, v) -> setLiquidVivo(k, v) }
+    }
+
+    fun setShakePhysics(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setShakePhysics(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(shakePhysics = enabled)
+        }
+    }
+
+    fun setPopOutButtons(enabled: Boolean) {
+        mutableState.value = mutableState.value.copy(popOutButtons = enabled)
+        persistPopOutSetting(PopOutButtonsHook.SETTING_ENABLED, if (enabled) "1" else "0")
+    }
+
+    init {
+        // The position editor may have been killed mid-edit; never leave SystemUI holding the bulges.
+        runCatching {
+            val r = getApplication<Application>().contentResolver
+            if (Settings.Global.getInt(r, PopOutButtonsHook.SETTING_EDIT, 0) == 1) {
+                Settings.Global.putString(r, PopOutButtonsHook.SETTING_EDIT, "0")
+            }
+        }
+    }
+
+    fun reloadPopOutPositions() {
+        val r = getApplication<Application>().contentResolver
+        fun f(key: String, def: Float) = Settings.Global.getString(r, key)?.toFloatOrNull() ?: def
+        mutableState.value = mutableState.value.copy(
+            popOutVolumeUpY = f(PopOutButtonsHook.SETTING_VOLUME_UP_Y, PopOutButtonsHook.DEFAULT_VOLUME_UP_Y),
+            popOutVolumeDownY = f(PopOutButtonsHook.SETTING_VOLUME_DOWN_Y, PopOutButtonsHook.DEFAULT_VOLUME_DOWN_Y),
+            popOutPowerY = f(PopOutButtonsHook.SETTING_POWER_Y, PopOutButtonsHook.DEFAULT_POWER_Y)
+        )
+    }
+
+    fun setPopOutLeftSide(enabled: Boolean) {
+        mutableState.value = mutableState.value.copy(popOutLeftSide = enabled)
+        persistPopOutSetting(PopOutButtonsHook.SETTING_LEFT_SIDE, if (enabled) "1" else "0")
+    }
+
+    fun setPopOutDepth(value: Float) {
+        val adjusted = value.coerceIn(2f, 30f)
+        mutableState.value = mutableState.value.copy(popOutDepth = adjusted)
+        persistPopOutSetting(PopOutButtonsHook.SETTING_DEPTH, "%.1f".format(java.util.Locale.US, adjusted))
+    }
+
+    fun setPopOutVolumeUpY(value: Float) {
+        val adjusted = value.coerceIn(0f, 100f)
+        mutableState.value = mutableState.value.copy(popOutVolumeUpY = adjusted)
+        persistPopOutSetting(PopOutButtonsHook.SETTING_VOLUME_UP_Y, "%.1f".format(java.util.Locale.US, adjusted))
+    }
+
+    fun setPopOutVolumeDownY(value: Float) {
+        val adjusted = value.coerceIn(0f, 100f)
+        mutableState.value = mutableState.value.copy(popOutVolumeDownY = adjusted)
+        persistPopOutSetting(PopOutButtonsHook.SETTING_VOLUME_DOWN_Y, "%.1f".format(java.util.Locale.US, adjusted))
+    }
+
+    fun setPopOutPowerY(value: Float) {
+        val adjusted = value.coerceIn(0f, 100f)
+        mutableState.value = mutableState.value.copy(popOutPowerY = adjusted)
+        persistPopOutSetting(PopOutButtonsHook.SETTING_POWER_Y, "%.1f".format(java.util.Locale.US, adjusted))
+    }
+
+    private fun persistPopOutSetting(key: String, value: String) {
+        liquidGlassSettingJobs.remove(key)?.cancel()
+        liquidGlassSettingJobs[key] = viewModelScope.launch {
+            delay(120)
+            withContext(Dispatchers.IO) { installer.setPopOutParameter(key, value) }
+            liquidGlassSettingJobs.remove(key)
+        }
+    }
+
+    fun setLockscreenQuickToolGlass(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(applying = true, status = "Applying lockscreen glass shortcuts…", success = null)
+            val result = withContext(Dispatchers.IO) { installer.setLockscreenQuickToolGlass(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(lockscreenQuickToolGlass = enabled)
+            mutableState.value = mutableState.value.copy(
+                applying = false,
+                status = if (result.success) "Lockscreen glass shortcuts applied" else "Unable to apply lockscreen glass shortcuts",
+                success = result.success
+            )
+        }
+    }
+
+
     fun setAllowAllMediaPlayers(enabled: Boolean) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { installer.setAllowAllMediaPlayers(enabled) }
@@ -1245,4 +1456,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun paletteColor(hue: Float): Int = Color.HSVToColor(floatArrayOf(hue, 0.92f, 1f))
 
+}
+
+private fun readLiquidVivo(application: Application): Map<String, Int> {
+    val cr = application.contentResolver
+    val keys = buildList {
+        add(LiquidVivoGlassHook.KEY_ENABLE)
+        add(LiquidVivoGlassHook.KEY_LIQUID_GLASS)
+        add(LiquidVivoGlassHook.KEY_GLASS_OPACITY)
+        add(LiquidVivoGlassHook.KEY_GLASS_RADIUS)
+        add(LiquidVivoGlassHook.KEY_ISLAND)
+        LiquidVivoGlassHook.Scene.entries.forEach {
+            add(LiquidVivoGlassHook.radiusKey(it))
+            add(LiquidVivoGlassHook.alphaKey(it))
+        }
+    }
+    return buildMap {
+        keys.forEach { key ->
+            runCatching { Settings.Global.getInt(cr, key) }.getOrNull()?.let { put(key, it) }
+        }
+    }
 }

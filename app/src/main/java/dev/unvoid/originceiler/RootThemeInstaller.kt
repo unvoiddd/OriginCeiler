@@ -36,13 +36,13 @@ class RootThemeInstaller(private val context: Context) {
             "settings put system themed_icon_enabled 0; settings put secure themed_icon_enabled 0; " +
             "rm -rf /data/bbkcore/theme/icons; " +
             "settings put system key_system_color_change \$(date +%s); " +
-            "am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+            "am force-stop com.bbk.launcher2; $MARK_LAUNCHER_ICONS_DIRTY am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
     fun setLiveIconPackOptions(autoRecolor: Boolean, replaceBackground: Boolean): RootResult = execute(
         "settings put global ${LauncherIconPack.SETTING_AUTO_RECOLOR} ${if (autoRecolor) 1 else 0}; " +
             "settings put global ${LauncherIconPack.SETTING_REPLACE_BACKGROUND} ${if (replaceBackground) 1 else 0}; " +
-            "am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null"
+            "am force-stop com.bbk.launcher2; $MARK_LAUNCHER_ICONS_DIRTY am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null"
     )
 
     fun restartLauncher(): RootResult {
@@ -62,7 +62,7 @@ class RootThemeInstaller(private val context: Context) {
     }
 
     fun resetIcons(): RootResult {
-        return execute("rm -rf /data/bbkcore/theme/icons; settings delete global ${LauncherIconPack.SETTING_PACK}; settings delete global ${LauncherIconPack.SETTING_AUTO_RECOLOR}; settings delete global ${LauncherIconPack.SETTING_REPLACE_BACKGROUND}; settings delete global originicons_pixel_search_aosp_tint; restorecon -RF /data/bbkcore/theme 2>/dev/null || true; am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+        return execute("rm -rf /data/bbkcore/theme/icons; settings delete global ${LauncherIconPack.SETTING_PACK}; settings delete global ${LauncherIconPack.SETTING_AUTO_RECOLOR}; settings delete global ${LauncherIconPack.SETTING_REPLACE_BACKGROUND}; settings delete global originicons_pixel_search_aosp_tint; restorecon -RF /data/bbkcore/theme 2>/dev/null || true; am force-stop com.bbk.launcher2; $MARK_LAUNCHER_ICONS_DIRTY am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
     fun setCircleToSearch(enabled: Boolean): RootResult {
@@ -77,6 +77,118 @@ class RootThemeInstaller(private val context: Context) {
 
     fun setLauncherIconSize(value: Int): RootResult {
         return execute("settings put global originroottoolbox_launcher_icon_size ${value.coerceIn(70, 150)}")
+    }
+
+    fun applyLauncherGrid(cols: Int, rows: Int): RootResult {
+        val safeCols = cols.coerceAtLeast(1)
+        val safeRows = rows.coerceAtLeast(1)
+
+        val cr = context.contentResolver
+        val isCustomEnabled = Settings.Global.getInt(cr, LauncherGridHook.SETTING_CUSTOM_GRID_ENABLED, 0) == 1
+        val origCols = Settings.Global.getInt(cr, LauncherGridHook.SETTING_ORIGINAL_COLUMNS, -1)
+        val origRows = Settings.Global.getInt(cr, LauncherGridHook.SETTING_ORIGINAL_ROWS, -1)
+
+        val saveOriginalCmd = if (!isCustomEnabled || origCols <= 0 || origRows <= 0) {
+            val curCols = Settings.Global.getInt(cr, LauncherGridHook.SETTING_GRID_COLUMNS, 4).coerceAtLeast(1)
+            val curRows = Settings.Global.getInt(cr, LauncherGridHook.SETTING_GRID_ROWS, 7).coerceAtLeast(1)
+            "settings put global ${LauncherGridHook.SETTING_ORIGINAL_COLUMNS} $curCols; " +
+            "settings put global ${LauncherGridHook.SETTING_ORIGINAL_ROWS} $curRows; "
+        } else ""
+
+        val layoutXml = """
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <int name="oldCountY" value="$safeRows" />
+    <int name="newCountY" value="$safeRows" />
+    <int name="launcher_newCountX_2" value="$safeCols" />
+    <int name="oldCountX" value="$safeCols" />
+    <int name="newCountX" value="$safeCols" />
+    <int name="launcher_newCountY_2" value="$safeRows" />
+    <int name="launcher_newCountY_drawer_2" value="$safeRows" />
+    <int name="launcher_newCountX_drawer_2" value="$safeCols" />
+</map>
+""".trimIndent()
+
+        val launcher3Xml = """
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <string name="idp_grid_name">${safeCols}_by_${safeRows}</string>
+</map>
+""".trimIndent()
+
+        val script = """
+            am force-stop com.bbk.launcher2;
+            $saveOriginalCmd
+            settings put global ${LauncherGridHook.SETTING_CUSTOM_GRID_ENABLED} 1;
+            settings put global ${LauncherGridHook.SETTING_GRID_COLUMNS} $safeCols;
+            settings put global ${LauncherGridHook.SETTING_GRID_ROWS} $safeRows;
+            am force-stop com.bbk.launcher2;
+            mkdir -p /data/user_de/0/com.bbk.launcher2/shared_prefs;
+            rm -f /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml.bak /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml.bak;
+            LAUNCHER_OWNER=${'$'}(stat -c '%u:%g' /data/user_de/0/com.bbk.launcher2 2>/dev/null || echo "10093:10093");
+            cat << 'EOF' > /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml
+$layoutXml
+EOF
+            cat << 'EOF' > /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml
+$launcher3Xml
+EOF
+            chown ${'$'}LAUNCHER_OWNER /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml 2>/dev/null || true;
+            chmod 660 /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml 2>/dev/null || true;
+            restorecon -RF /data/user_de/0/com.bbk.launcher2/shared_prefs 2>/dev/null || true;
+            am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null
+        """.trimIndent()
+
+        return execute(script)
+    }
+
+    fun resetLauncherGrid(): RootResult {
+        val cr = context.contentResolver
+        val origCols = Settings.Global.getInt(cr, LauncherGridHook.SETTING_ORIGINAL_COLUMNS, 4).coerceAtLeast(1)
+        val origRows = Settings.Global.getInt(cr, LauncherGridHook.SETTING_ORIGINAL_ROWS, 7).coerceAtLeast(1)
+
+        val layoutXml = """
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <int name="oldCountY" value="$origRows" />
+    <int name="newCountY" value="$origRows" />
+    <int name="launcher_newCountX_2" value="$origCols" />
+    <int name="oldCountX" value="$origCols" />
+    <int name="newCountX" value="$origCols" />
+    <int name="launcher_newCountY_2" value="$origRows" />
+    <int name="launcher_newCountY_drawer_2" value="$origRows" />
+    <int name="launcher_newCountX_drawer_2" value="$origCols" />
+</map>
+""".trimIndent()
+
+        val launcher3Xml = """
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <string name="idp_grid_name">${origCols}_by_${origRows}</string>
+</map>
+""".trimIndent()
+
+        val script = """
+            am force-stop com.bbk.launcher2;
+            settings put global ${LauncherGridHook.SETTING_CUSTOM_GRID_ENABLED} 0;
+            settings put global ${LauncherGridHook.SETTING_GRID_COLUMNS} $origCols;
+            settings put global ${LauncherGridHook.SETTING_GRID_ROWS} $origRows;
+            am force-stop com.bbk.launcher2;
+            mkdir -p /data/user_de/0/com.bbk.launcher2/shared_prefs;
+            rm -f /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml.bak /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml.bak;
+            LAUNCHER_OWNER=${'$'}(stat -c '%u:%g' /data/user_de/0/com.bbk.launcher2 2>/dev/null || echo "10093:10093");
+            cat << 'EOF' > /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml
+$layoutXml
+EOF
+            cat << 'EOF' > /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml
+$launcher3Xml
+EOF
+            chown ${'$'}LAUNCHER_OWNER /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml 2>/dev/null || true;
+            chmod 660 /data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.layout.xml /data/user_de/0/com.bbk.launcher2/shared_prefs/com.android.launcher3.prefs.xml 2>/dev/null || true;
+            restorecon -RF /data/user_de/0/com.bbk.launcher2/shared_prefs 2>/dev/null || true;
+            am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null
+        """.trimIndent()
+
+        return execute(script)
     }
 
     fun setStatusBarBatteryScale(value: Int): RootResult {
@@ -237,6 +349,59 @@ class RootThemeInstaller(private val context: Context) {
         return execute("settings put global ${MaterialOriginOsLockscreenHook.SETTING_ENABLED} $value; am force-stop com.vivo.systemuiplugin; am force-stop com.vivo.fingerprintui; am force-stop com.vivo.faceui; killall com.android.systemui 2>/dev/null || true")
     }
 
+    fun setCustomLockscreenClock(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        return execute("settings put global ${MaterialOriginOsLockscreenHook.SETTING_CUSTOM_CLOCK} $value; am broadcast --user 0 -a ${CustomLockscreenClockHostView.ACTION_CLOCK_STYLE_CHANGED} -f 0x01000000 2>/dev/null || true")
+    }
+
+    fun setCustomLockscreenClockStyle(styleId: String): RootResult {
+        return execute("settings put global ${CustomLockscreenClockHostView.SETTING_CLOCK_STYLE} $styleId; am broadcast --user 0 -a ${CustomLockscreenClockHostView.ACTION_CLOCK_STYLE_CHANGED} -f 0x01000000 2>/dev/null || true")
+    }
+
+    fun setCustomLockscreenClockColor(color: Int): RootResult {
+        return execute("settings put global ${CustomLockscreenClockHostView.SETTING_CLOCK_COLOR} $color; am broadcast --user 0 -a ${CustomLockscreenClockHostView.ACTION_CLOCK_STYLE_CHANGED} -f 0x01000000 2>/dev/null || true")
+    }
+
+    fun setCustomLockscreenClockGlass(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        return execute("settings put global ${CustomLockscreenClockHostView.SETTING_CLOCK_GLASS} $value; am broadcast --user 0 -a ${CustomLockscreenClockHostView.ACTION_CLOCK_STYLE_CHANGED} -f 0x01000000 2>/dev/null || true")
+    }
+
+    fun setCustomLockscreenClockParam(key: String, value: Any): RootResult {
+        return execute("settings put global $key '$value'; am broadcast --user 0 -a ${CustomLockscreenClockHostView.ACTION_CLOCK_STYLE_CHANGED} -f 0x01000000 2>/dev/null || true")
+    }
+
+    fun setLiquidVivoParameter(key: String, value: Int): RootResult {
+        val known = key.startsWith(LiquidVivoGlassHook.PREFIX) || key.startsWith(KyantGlass.PREFIX)
+        if (!known || key.any { !it.isLetterOrDigit() && it != '_' }) {
+            return RootResult(false, "Invalid glass setting")
+        }
+        // WRITE_SECURE_SETTINGS is granted by the Pop Out editor; fall back to root otherwise.
+        val direct = runCatching { Settings.Global.putInt(context.contentResolver, key, value) }.getOrDefault(false)
+        return if (direct) RootResult(true, "Done") else execute("settings put global $key $value")
+    }
+
+    fun setShakePhysics(enabled: Boolean): RootResult =
+        execute("settings put global ${ShakePhysicsHook.SETTING_ENABLED} ${if (enabled) 1 else 0}")
+
+    fun setPopOutParameter(key: String, value: String): RootResult {
+        val allowed = setOf(
+            PopOutButtonsHook.SETTING_ENABLED,
+            PopOutButtonsHook.SETTING_DEPTH,
+            PopOutButtonsHook.SETTING_VOLUME_UP_Y,
+            PopOutButtonsHook.SETTING_VOLUME_DOWN_Y,
+            PopOutButtonsHook.SETTING_POWER_Y,
+            PopOutButtonsHook.SETTING_LEFT_SIDE
+        )
+        if (key !in allowed || value.toFloatOrNull() == null) return RootResult(false, "Invalid pop out setting")
+        return execute("settings put global $key $value")
+    }
+
+    fun setLockscreenQuickToolGlass(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        return execute("settings put global ${LockscreenQuickToolGlassHook.SETTING_ENABLED} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
+    }
+
     fun setSettingsContainerGap(value: Int): RootResult {
         return execute("settings put global originroottoolbox_settings_container_gap ${value.coerceIn(0, 24)}")
     }
@@ -293,34 +458,6 @@ class RootThemeInstaller(private val context: Context) {
         }.getOrElse { RootResult(false, it.message ?: "Unable to prepare Control Center icons") }
     }
 
-    fun setLiquidGlassControlCenter(enabled: Boolean): RootResult {
-        val value = if (enabled) 1 else 0
-        return execute("settings put global ${ShadeLiquidGlassHook.SETTING_CONTROL_CENTER} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
-    }
-
-    fun setLiquidGlassParameter(key: String, value: Int): RootResult {
-        val allowed = setOf(
-            ShadeLiquidGlassHook.SETTING_BLUR,
-            ShadeLiquidGlassHook.SETTING_REFRACTION,
-            ShadeLiquidGlassHook.SETTING_DISPERSION,
-            ShadeLiquidGlassHook.SETTING_SATURATION,
-            ShadeLiquidGlassHook.SETTING_TINT,
-            ShadeLiquidGlassHook.SETTING_EDGE,
-            ShadeLiquidGlassHook.SETTING_QUALITY,
-            ShadeLiquidGlassHook.SETTING_CC_RADIUS,
-            ShadeLiquidGlassHook.SETTING_TILES_BLUR,
-            ShadeLiquidGlassHook.SETTING_TILES_TINT,
-            ShadeLiquidGlassHook.SETTING_PLAYER_BLUR,
-            ShadeLiquidGlassHook.SETTING_PLAYER_TINT,
-            ShadeLiquidGlassHook.SETTING_SLIDER_BLUR,
-            ShadeLiquidGlassHook.SETTING_SLIDER_TINT,
-            ShadeLiquidGlassHook.SETTING_BUTTON_BLUR,
-            ShadeLiquidGlassHook.SETTING_BUTTON_TINT
-        )
-        if (key !in allowed) return RootResult(false, "Unsupported Liquid Glass setting")
-        return execute("settings put global $key $value")
-    }
-
     fun setNativeBlurTuner(enabled: Boolean): RootResult {
         val value = if (enabled) 1 else 0
         return execute("settings put global ${NativeBlurHook.SETTING_ENABLED} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
@@ -364,11 +501,11 @@ class RootThemeInstaller(private val context: Context) {
 
     fun setNativeAospThemedIcons(enabled: Boolean): RootResult {
         val value = if (enabled) 1 else 0
-        return execute("settings put global originicons_themed_launcher_icons $value; settings delete global ${LauncherIconPack.SETTING_PACK}; settings delete global originicons_force_monet_icons; settings put system themed_icon_enabled $value; settings put secure themed_icon_enabled $value; settings put system key_icon_color_follow_system $value; settings put system key_system_color_change \$(date +%s); am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+        return execute("settings put global originicons_themed_launcher_icons $value; settings delete global ${LauncherIconPack.SETTING_PACK}; settings delete global originicons_force_monet_icons; settings put system themed_icon_enabled $value; settings put secure themed_icon_enabled $value; settings put system key_icon_color_follow_system $value; settings put system key_system_color_change \$(date +%s); am force-stop com.bbk.launcher2; $MARK_LAUNCHER_ICONS_DIRTY am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
     fun setMonetIconScale(value: Int): RootResult {
-        return execute("settings put global originicons_monet_icon_scale ${value.coerceIn(65, 118)}; am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
+        return execute("settings put global originicons_monet_icon_scale ${value.coerceIn(65, 118)}; am force-stop com.bbk.launcher2; $MARK_LAUNCHER_ICONS_DIRTY am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
     fun setLiveUpdatesInOriginIsland(enabled: Boolean): RootResult {
@@ -583,6 +720,12 @@ echo applied
         const val MODULE_PACKAGE = "dev.unvoid.originceiler"
         const val WHISPER_RECOGNITION_COMPONENT =
             "$MODULE_PACKAGE/dev.unvoid.originceiler.WhisperRecognitionService"
+
+        // Workspace icons are stored as bitmaps in launcher.db; with this flag the launcher
+        // re-renders them on its next start. Must run while the launcher is stopped.
+        const val MARK_LAUNCHER_ICONS_DIRTY =
+            "sed -i 's/name=\"icon_in_db_dirty\" value=\"false\"/name=\"icon_in_db_dirty\" value=\"true\"/' " +
+                "/data/user_de/0/com.bbk.launcher2/shared_prefs/com.bbk.launcher2.prefs.xml 2>/dev/null;"
     }
 
 }

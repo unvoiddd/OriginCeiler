@@ -24,7 +24,10 @@ object LsposedScopeSync {
         "com.vivo.musicwidgetmix",
         "com.vivo.pay",
         "com.vivo.systemuiplugin",
-        "com.vivo.upslide"
+        "com.vivo.upslide",
+        "com.vivo.card",
+        "com.vivo.permissionmanager",
+        "com.android.permissioncontroller"
     )
 
     fun sync(apkPath: String): Boolean {

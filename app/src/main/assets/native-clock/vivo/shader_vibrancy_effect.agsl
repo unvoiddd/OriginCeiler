@@ -1,0 +1,274 @@
+uniform shader uContext; // 控件内容
+uniform shader uBackground; // 底层控件背景
+uniform int uType; // 2：分层模糊 1: 文字模糊 0: 透彩色
+uniform int isDisplayP3; // 0：srgb 1：P3
+uniform float uSaturation;  //饱和度
+uniform float uMask_1[3];
+uniform float uMask_2[3];
+uniform float uOpacity[3];
+uniform int uFusion[3];//融合方式：(0 正常, 1 加亮, 2 压暗, 3 颜色加深, 4 明度, 5 强光, 6 叠加, 7 颜色减淡, 8 柔光, 9 正片叠底, 10 线性减淡/提亮, 11 线性加深/加暗)
+uniform float uDimmingRatio;
+uniform colorFilter uLightingFilter; // 提亮滤镜
+uniform colorFilter uDimmingFilter;  // 压暗滤镜
+
+half3 saturation(half4 O) {
+    if (uSaturation == 0.0) return O.rgb;
+    float saturation = uSaturation / 100.0;
+
+    half maxC = max(max(O.r, O.g), O.b);
+    half minC = min(min(O.r, O.g), O.b);
+    half delta = maxC - minC;
+    if (delta < 0.003) return O.rgb;
+
+    half L = maxC + minC;
+    half S = delta / (L < 1.0 ? L : (2.0 - L));
+    L = L / 2.0;
+    if (saturation > 0.0) {
+        half A = (saturation + S) >= 1.0 ? (1.0 - S) / S
+                                          : saturation / (1.0 - saturation);
+        return saturate(O.rgb + (O.rgb - L) * A);
+    }
+    return saturate(L + (O.rgb - L) * (1.0 + saturation));
+}
+
+half3 normal(half3 org, half3 mask, float opacity) {
+    return mix(org, mask, opacity);
+}
+half3 lighten(half3 org, half3 mask, float opacity) {
+    return mix(org, half3(max(org.r, mask.r), max(org.g, mask.g), max(org.b, mask.b)), opacity);
+}
+half3 darken(half3 org, half3 mask, float opacity) {
+    return mix(org, half3(min(org.r, mask.r), min(org.g, mask.g), min(org.b, mask.b)), opacity);
+}
+half3 colorBurn(half3 org, half3 mask, float opacity) {
+    return mix(org, (org + mask - 1.0) / (mask + 0.0000001), opacity);
+}
+half3 luminosity(half3 org, half3 mask, float opacity) {
+    float oLum = dot(org, half3(0.3, 0.59, 0.11));
+    float mLum = dot(mask, half3(0.3, 0.59, 0.11));
+    float lum = mLum - oLum;
+    half3 c = org + lum;
+    float minC = min(c.r, min(c.g, c.b));
+    float maxC = max(c.r, max(c.g, c.b));
+    if (minC < 0.0) {
+        return mix(org, mLum + (c - mLum) * mLum / (mLum - minC), opacity);
+    } else if (maxC > 1.0) {
+        return mix(org, mLum + (c - mLum) * (1.0 - mLum) / (maxC - mLum), opacity);
+    } else {
+        return mix(org, c, opacity);
+    }
+}
+half3 hardLight(half3 org, half3 mask, float opacity) {
+    return mix(org, mix(org * mask * 2.0, 1.0 - 2.0 * (1.0 - org) * (1.0 - mask), step(0.5, mask)), opacity);
+}
+half3 overlay(half3 org, half3 mask, float opacity) {
+    return mix(org, mix(org * mask * 2.0, 1.0 - 2.0 * (1.0 - org) * (1.0 - mask), step(0.5, org)), opacity);
+}
+half3 colorDodge(half3 org, half3 mask, float opacity) {
+    return mix(org, org / (1.0 - mask + 0.0000001), opacity);
+}
+half3 softLight(half3 org, half3 mask, float opacity) {
+    return mix(org, mix((2.0 * mask - 1.0) * (org - org * org) + org, (2 * mask - 1.0) * (sqrt(org) - org) + org, step(mask, half3(0.5, 0.5, 0.5))), opacity);
+}
+half3 multiply(half3 org, half3 mask, float opacity) {
+    return mix(org, org * mask, opacity);
+}
+half3 linearDodge(half3 org, half3 mask, float opacity) {
+    return mix(org, org + mask, opacity);
+}
+half3 linearBurn(half3 org, half3 mask, float opacity) {
+    return mix(org, org + mask - 1.0, opacity);
+}
+
+half3 fusionCompute(half3 org, half3 mask, float opacity, int fusion) {
+    half3 outFusion = org;
+    outFusion = fusion == 1 ? lighten(org, mask, opacity)
+                            : (fusion == 2 ? darken(org, mask, opacity)
+                            : (fusion == 3 ? colorBurn(org, mask, opacity)
+                            : (fusion == 4 ? luminosity(org, mask, opacity)
+                            : (fusion == 5 ? hardLight(org, mask, opacity)
+                            : (fusion == 6 ? overlay(org, mask, opacity)
+                            : (fusion == 7 ? colorDodge(org, mask, opacity)
+                            : (fusion == 8 ? softLight(org, mask, opacity)
+                            : (fusion == 9 ? multiply(org, mask, opacity)
+                            : (fusion == 10 ? linearDodge(org, mask, opacity)
+                            : (fusion == 11 ? linearBurn(org, mask, opacity)
+                            : normal(org, mask, opacity)))))))))));
+    return outFusion;
+}
+
+half3 rgbCompare(half3 org) {
+    half3 outColor = org;
+    half temp = max(max(org.r, org.g), org.b);
+    if (org.r >= temp) {
+        outColor.g = 0.0;
+        outColor.b = 0.0;
+    } else if (org.g >= temp) {
+        outColor.r = 0.0;
+        outColor.b = 0.0;
+    } else if (org.b >= temp){
+        outColor.r = 0.0;
+        outColor.g = 0.0;
+    }
+    return outColor;
+}
+
+half4 vibrancyEffect(float2 fragcoord) {
+    half4 contentColor = uContext.eval(fragcoord);
+    half4 backgroundColor = half4(saturation(uBackground.eval(fragcoord)), 1.0);
+    half3 mask1 = half3(uMask_1[0], uMask_1[1], uMask_1[2]);
+    half3 mask2 = half3(uMask_2[0], uMask_2[1], uMask_2[2]);
+    vec4 result;
+    half4 vibrancyColor;
+
+    if (contentColor.r + contentColor.g + contentColor.b + contentColor.a > 0.) {
+        half3 vibrancy = backgroundColor.rgb;
+        vibrancyColor = backgroundColor;
+        half3 B = vibrancy;
+        half3 D = vibrancy;
+        if (uOpacity[0] != 0.0 || uOpacity[1] != 0.0) {
+            if (uOpacity[2] <  1.0) {
+                B = mix(vibrancy, mask1, uOpacity[0]);
+            } else {
+                B = fusionCompute(vibrancy, mask1, uOpacity[0], uFusion[0]);
+            }
+            D = fusionCompute(B, mask2, uOpacity[1], uFusion[1]);
+        }
+
+        vibrancy = fusionCompute(vibrancy, D, uOpacity[2], uFusion[2]);
+        vibrancyColor.rgb = vibrancy;
+    }
+    result = vibrancyColor * contentColor.a;
+    return saturate(result);
+}
+
+half4 vibrancyEffect(float2 fragcoord, int level) {
+    half4 contentColor = uContext.eval(fragcoord);
+    half4 blurImg = uBackground.eval(fragcoord);
+    half4 result;
+    half4 vibrancyColor;
+    half3 vibrancy, mask1, mask2;
+    //提亮
+    if(uDimmingRatio > 1.0){
+        blurImg.rgb = toLinearSrgb(blurImg.rgb);
+        blurImg.rgb = blurImg.rgb * uDimmingRatio;
+        blurImg.rgb = fromLinearSrgb(blurImg.rgb);
+    }
+
+    mask1 = half3(uMask_1[0], uMask_1[1], uMask_1[2]);//前景1+前景2
+    mask2 = half3(uMask_2[0], uMask_2[1], uMask_2[2]);//背景
+
+    if (contentColor.r + contentColor.g + contentColor.b + contentColor.a > 0.) {
+        vibrancyColor = blurImg;
+        vibrancy = blurImg.rgb;
+        if (level == 1) {
+            vibrancyColor.rgb = fusionCompute(saturation(half4(vibrancy, 1.0)), mask1, uOpacity[0], uFusion[0]);
+        }  else if (level == 0) {
+            vibrancyColor.rgb = fusionCompute(vibrancy, mask2, uOpacity[1], uFusion[1]);
+        }  else if (level == 2) {
+            vibrancyColor.rgb = fusionCompute(saturation(half4(vibrancy, 1.0)), mask1, uOpacity[2], uFusion[2]);
+        }
+    }
+    vibrancyColor.a = contentColor.a;
+    result = vibrancyColor;
+    return saturate(result);
+}
+//锁屏时间透彩色
+half4 blurEffect(float2 uv) {
+    half4 result;
+    half4 contentColor = uContext.eval(uv);
+    half4 blurImg = uBackground.eval(uv);
+    half4 vibrancyColor;
+    half3 mask1, vibrancy;
+    mask1 = half3(uMask_1[0], uMask_1[1], uMask_1[2]);
+    //提亮
+    if(uDimmingRatio > 1.0){
+        blurImg.rgb = toLinearSrgb(blurImg.rgb);
+        blurImg.rgb = blurImg.rgb * uDimmingRatio;
+        blurImg.rgb = fromLinearSrgb(blurImg.rgb);
+    }
+    vibrancy = blurImg.rgb;
+
+    if (contentColor.r + contentColor.g + contentColor.b + contentColor.a > 0.) {
+        vibrancyColor.rgb = fusionCompute(vibrancy, mask1, uOpacity[0], uFusion[0]);
+        vibrancyColor.rgb = saturate(vibrancyColor.rgb);
+        vibrancyColor.a = blurImg.a;
+        if (blurImg.r + blurImg.g + blurImg.b + blurImg.a <= 0.0) {
+            vibrancyColor.rgb = mask1;
+            vibrancyColor.a = 0.95;
+        }
+    }
+    //压暗
+    if(uDimmingRatio > 1.0){
+        vibrancyColor.rgb = toLinearSrgb(vibrancyColor.rgb);
+        vibrancyColor.rgb = vibrancyColor.rgb / uDimmingRatio;
+        vibrancyColor.rgb = fromLinearSrgb(vibrancyColor.rgb);
+    }
+    result = vibrancyColor * contentColor.a;
+    return saturate(result);
+}
+
+half3 convertP3tosRGB(half3 rgbP3) {
+    half3 r1 = half3(1.21297402, -0.5654102, 0.0);
+    half3 r2 = half3(-0.24646086, 1.13082041, 0.0);
+    half3 r3 = half3(-0.09722568, -0.27111882, 1.04508197);
+    half3 srgb = half3(rgbP3.r * r1.r + rgbP3.g * r1.g + rgbP3.b * r1.b, rgbP3.r * r2.r + rgbP3.g * r2.g + rgbP3.b * r2.b, rgbP3.r * r3.r + rgbP3.g * r3.g + rgbP3.b * r3.b);
+    return saturate(srgb);
+}
+//锁屏小组件透彩色
+half4 sepVibrancyEffect(float2 fragcoord) {
+    half4 result, tempContentColor;
+    half4 contentColor = uContext.eval(fragcoord);
+    half4 fColor1, fColor2, bColor;
+    half4 blurImg = uBackground.eval(fragcoord);
+    //提亮
+    if(uDimmingRatio > 1.0){
+        blurImg.rgb = toLinearSrgb(blurImg.rgb);
+        blurImg.rgb = blurImg.rgb * uDimmingRatio;
+        blurImg.rgb = fromLinearSrgb(blurImg.rgb);
+        contentColor.rgb = toLinearSrgb(contentColor.rgb);
+        contentColor.rgb = contentColor.rgb * uDimmingRatio;
+        contentColor.rgb = fromLinearSrgb(contentColor.rgb);
+    }
+    bColor = vibrancyEffect(fragcoord, 0);
+    fColor1 = vibrancyEffect(fragcoord, 1);
+    fColor2 = vibrancyEffect(fragcoord, 2);
+    tempContentColor = contentColor;
+    contentColor.rgb = convertP3tosRGB(tempContentColor.rgb);
+    fColor1.rgb = fColor1.rgb * contentColor.r;
+    fColor1.a = contentColor.r;
+    fColor2.rgb = fColor2.rgb * contentColor.g;
+    fColor2.a = contentColor.g;
+    bColor.rgb = bColor.rgb * contentColor.b;
+    bColor.a = contentColor.b;
+    result = fColor1 + fColor2 + bColor;
+    if (blurImg.r + blurImg.g + blurImg.b + blurImg.a <= 0.0) {
+        result.a = blurImg.a;
+    }
+    //压暗
+    if(uDimmingRatio > 1.0){
+        result.rgb = toLinearSrgb(result.rgb);
+        result.rgb = result.rgb / uDimmingRatio;
+        result.rgb = fromLinearSrgb(result.rgb);
+    }
+    return saturate(result);
+}
+
+half4 main(in float2 uv) {
+    half4 out_color;
+    switch (uType) {
+    case 0:
+        out_color = vibrancyEffect(uv);
+        break;
+    case 1:
+        out_color = blurEffect(uv);
+        break;
+    case 2:
+        out_color = sepVibrancyEffect(uv);
+        break;
+    default:
+        out_color = half4(0.0);
+        break;
+    }
+    return out_color;
+}

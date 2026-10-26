@@ -1,5 +1,6 @@
 package dev.unvoid.originceiler
 
+import kotlin.math.roundToInt
 import android.app.Activity
 import android.app.ActivityOptions
 import android.app.Application
@@ -68,6 +69,7 @@ import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 
 class CircleToSearchHook : IXposedHookLoadPackage {
+
     private var lastAssistantLaunch = 0L
     private var navigationDownX = 0f
     private var navigationDownY = 0f
@@ -116,6 +118,9 @@ class CircleToSearchHook : IXposedHookLoadPackage {
     }
 
     override fun handleLoadPackage(loadPackageParam: XC_LoadPackage.LoadPackageParam) {
+        // OriginUI dialogs are bundled into every app: style them wherever the module is loaded.
+        runCatching { KyantGlassDialogs.install(loadPackageParam.classLoader) }
+            .onFailure(XposedBridge::log)
         if (loadPackageParam.packageName in setOf(
                 "com.android.systemui",
                 "com.bbk.launcher2",
@@ -136,13 +141,18 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 "com.bbk.theme",
                 "com.vivo.pay",
                 "com.vivo.fingerprintui",
-                "com.vivo.faceui"
+                "com.vivo.faceui",
+                "com.vivo.card"
             )
         ) {
             XposedBridge.log("OriginIcons loaded: ${loadPackageParam.packageName}")
         }
         if (loadPackageParam.packageName == "com.android.systemui") {
+            runCatching { PopOutButtonsHook.installSystemUi() }
+                .onFailure(XposedBridge::log)
             runCatching { MaterialOriginOsLockscreenHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { LockscreenQuickToolGlassHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { MaterialOriginOsHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
@@ -150,7 +160,9 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 .onFailure(XposedBridge::log)
             runCatching { StatusBarIconScaleHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
-            runCatching { ShadeLiquidGlassHook().install(loadPackageParam.classLoader) }
+            runCatching { LiquidVivoGlassHook.install(loadPackageParam.classLoader, loadPackageParam.packageName) }
+                .onFailure(XposedBridge::log)
+            runCatching { KyantGlassHook.installSystemUi(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { NativeBlurHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
@@ -172,6 +184,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         if (loadPackageParam.packageName == "android") {
             runCatching { hookPrivateDnsWithVpn(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
+            runCatching { PopOutButtonsHook.installSystemServer(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
         }
         if (loadPackageParam.packageName == "com.android.settings") {
             runCatching { hookSettingsContainerSpacing(loadPackageParam.classLoader) }
@@ -190,11 +204,13 @@ class CircleToSearchHook : IXposedHookLoadPackage {
             if (loadPackageParam.packageName == "com.vivo.systemuiplugin") {
                 runCatching { MaterialOriginOsLockscreenHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
+                runCatching { LockscreenQuickToolGlassHook().install(loadPackageParam.classLoader) }
+                    .onFailure(XposedBridge::log)
                 runCatching { MaterialOriginOsStatusFontHook().install() }
                     .onFailure(XposedBridge::log)
                 runCatching { StatusBarIconScaleHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
-                runCatching { ShadeLiquidGlassHook().install(loadPackageParam.classLoader) }
+                runCatching { LiquidVivoGlassHook.install(loadPackageParam.classLoader, loadPackageParam.packageName) }
                     .onFailure(XposedBridge::log)
                 runCatching { OriginIslandLiveUpdatesHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
@@ -207,6 +223,16 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 .onFailure(XposedBridge::log)
         }
         if (loadPackageParam.packageName == "com.bbk.launcher2") {
+            runCatching { LauncherGridHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { LauncherIconSettingsHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { ShakePhysicsHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { KyantGlassHook.installLauncher() }
+                .onFailure(XposedBridge::log)
+            runCatching { KyantGlassPanels.installLauncher() }
+                .onFailure(XposedBridge::log)
             runCatching { hookCircleToSearch(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { hookPixelHomeLayout() }
@@ -251,6 +277,13 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         val processName = runCatching { loadPackageParam.javaClass.getField("processName").get(loadPackageParam) as? String }.getOrNull()
         if (loadPackageParam.packageName == "com.vivo.upslide" || processName == "com.vivo.upslide") {
             runCatching { hookNavigationHandle(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { KyantGlassPanels.installSidebar() }
+                .onFailure(XposedBridge::log)
+        }
+        // LiquidVivo glass for the sidebar host and its content cards.
+        if (loadPackageParam.packageName in setOf("com.vivo.upslide", "com.vivo.card")) {
+            runCatching { LiquidVivoGlassHook.install(loadPackageParam.classLoader, loadPackageParam.packageName) }
                 .onFailure(XposedBridge::log)
         }
         if (loadPackageParam.packageName == "com.vivo.musicwidgetmix") {
@@ -641,11 +674,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                         ) != 1
                     ) return
                     val flags = param.args[1] as Int
-                    param.args[1] = if (MonetThemedIconFactory.moodCubeIconStyle(application).themed) {
-                        flags or 1
-                    } else {
-                        flags and 1.inv()
-                    }
+                    param.args[1] = flags or 1
                 }
             }
         )
@@ -681,11 +710,11 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                             val context = if (contextIndex >= 0) param.args.getOrNull(contextIndex) as? Context ?: application else application
                             val bitmap = param.result as? Bitmap ?: return
                             val style = MonetThemedIconFactory.moodCubeIconStyle(context)
-                            if (!style.themed) return
-                            val packageName = if (packageIndex >= 0) param.args.getOrNull(packageIndex) as? String else null
+                            val packageName = param.args.firstOrNull { it == MonetThemedIconFactory.VIVO_DIALER_CLASS } as? String
+                                ?: if (packageIndex >= 0) param.args.getOrNull(packageIndex) as? String else null
                             val scale = Settings.Global.getInt(application.contentResolver, "originicons_monet_icon_scale", 100) / 100f
                             MonetThemedIconFactory.renderAospThemedLive(context, original, packageName, bitmap.width, true, scale)
-                                ?.let { MonetThemedIconFactory.applyMoodTint(it, style.tint) ?: it }
+                                ?.let { MonetThemedIconFactory.applyMoodTintIfNeeded(application, it, style) }
                                 ?.let { param.result = it }
                         }
                     })
@@ -716,9 +745,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                             val context = param.args.firstOrNull() as? Context ?: application
                             val bitmap = param.result as? Bitmap ?: return
                             val style = MonetThemedIconFactory.moodCubeIconStyle(context)
-                            if (!style.themed) return
                             MonetThemedIconFactory.recolorVivoThemeIcon(context, bitmap)
-                                ?.let { MonetThemedIconFactory.applyMoodTint(it, style.tint) ?: it }
+                                ?.let { MonetThemedIconFactory.applyMoodTintIfNeeded(application, it, style) }
                                 ?.let { param.result = it }
                         }
                     })
@@ -745,9 +773,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                             if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) != 1) return
                             val bitmap = param.result as? Bitmap ?: return
                             val style = MonetThemedIconFactory.moodCubeIconStyle(application)
-                            if (!style.themed) return
                             MonetThemedIconFactory.recolorVivoThemeIcon(application, bitmap)
-                                ?.let { MonetThemedIconFactory.applyMoodTint(it, style.tint) ?: it }
+                                ?.let { MonetThemedIconFactory.applyMoodTintIfNeeded(application, it, style) }
                                 ?.let { param.result = it }
                         }
                     })
@@ -775,10 +802,21 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                             if (!Settings.Global.getString(application.contentResolver, LauncherIconPack.SETTING_PACK).isNullOrBlank()) return
                             if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) != 1) return
                             val style = MonetThemedIconFactory.moodCubeIconStyle(application)
-                            if (!style.themed) return
                             val bitmap = param.result as? Bitmap ?: return
-                            MonetThemedIconFactory.recolorVivoThemeIcon(application, bitmap)
-                                ?.let { MonetThemedIconFactory.applyMoodTint(it, style.tint) ?: it }
+                            // Dock icons arrive as finished vivo bitmaps; draw the same AOSP glyph as on
+                            // the workspace when the app is known, recolor the vivo icon otherwise.
+                            val packageName = param.args.firstNotNullOfOrNull { arg ->
+                                arg?.takeIf { it !is Context && it !is Drawable && it !is Boolean && it !is Int }?.let {
+                                    runCatching { it.javaClass.getMethod("L4").invoke(it) as? ComponentName }.getOrNull()
+                                        ?.let { component -> if (component.className == MonetThemedIconFactory.VIVO_DIALER_CLASS) component.className else component.packageName }
+                                }
+                            }
+                            val source = param.args.filterIsInstance<Drawable>().firstOrNull()
+                                ?: BitmapDrawable(application.resources, bitmap)
+                            val scale = Settings.Global.getInt(application.contentResolver, "originicons_monet_icon_scale", 100) / 100f
+                            (MonetThemedIconFactory.renderAospThemedLive(application, source, packageName, bitmap.width, true, scale)
+                                ?: MonetThemedIconFactory.recolorVivoThemeIcon(application, bitmap))
+                                ?.let { MonetThemedIconFactory.applyMoodTintIfNeeded(application, it, style) }
                                 ?.let { param.result = it }
                         }
                     })
@@ -2715,16 +2753,70 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         if (launcherIconInternalScale.get() == true) return
                         val view = param.thisObject as? View ?: return
-                        if (!launcherIconViews.containsKey(view) || !isWorkspaceLauncherIcon(view)) return
+                        if (!launcherIconViews.containsKey(view)) return
                         val requested = param.args.firstOrNull() as? Float ?: return
                         if (methodName == "setScaleX") launcherIconBaseScaleX[view] = requested
                         else launcherIconBaseScaleY[view] = requested
-                        param.args[0] = requested * launcherIconScale(view)
+                        if (isWorkspaceLauncherIcon(view)) param.args[0] = requested * launcherIconScale(view)
                     }
                 }
             )
         }
+        // The launcher reads the current scale back (drag-and-drop, folder and press animations) and
+        // writes it again; reporting the user scale there compounded it on every pass. Getters
+        // return the launcher's own value, setters apply the user scale on top.
+        listOf("getScaleX", "getScaleY").forEach { methodName ->
+            XposedBridge.hookAllMethods(
+                View::class.java,
+                methodName,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (launcherIconInternalScale.get() == true) return
+                        val view = param.thisObject as? View ?: return
+                        if (!launcherIconViews.containsKey(view) || !isWorkspaceLauncherIcon(view)) return
+                        val base = if (methodName == "getScaleX") launcherIconBaseScaleX[view] else launcherIconBaseScaleY[view]
+                        if (base != null) param.result = base
+                    }
+                }
+            )
+        }
+        hookLauncherIconAnimator()
         XposedBridge.log("OriginRootToolbox launcher icon size hook ready")
+    }
+
+    /** ViewPropertyAnimator writes scale straight to the RenderNode, bypassing View.setScaleX. */
+    private fun hookLauncherIconAnimator() {
+        val animator = android.view.ViewPropertyAnimator::class.java
+        fun constant(name: String, fallback: Int): Int = runCatching {
+            animator.getDeclaredField(name).apply { isAccessible = true }.getInt(null)
+        }.getOrDefault(fallback)
+        val scaleX = constant("SCALE_X", 0x0008)
+        val scaleY = constant("SCALE_Y", 0x0010)
+        val viewField = runCatching { animator.getDeclaredField("mView").apply { isAccessible = true } }.getOrNull() ?: return
+        fun animatedIcon(param: XC_MethodHook.MethodHookParam): View? {
+            val view = runCatching { viewField.get(param.thisObject) as? View }.getOrNull() ?: return null
+            return view.takeIf { launcherIconViews.containsKey(it) && isWorkspaceLauncherIcon(it) }
+        }
+        XposedBridge.hookAllMethods(animator, "setValue", object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                val property = param.args.getOrNull(0) as? Int ?: return
+                if (property != scaleX && property != scaleY) return
+                val view = animatedIcon(param) ?: return
+                val requested = param.args.getOrNull(1) as? Float ?: return
+                if (property == scaleX) launcherIconBaseScaleX[view] = requested else launcherIconBaseScaleY[view] = requested
+                param.args[1] = requested * launcherIconScale(view)
+            }
+        })
+        XposedBridge.hookAllMethods(animator, "getValue", object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                val property = param.args.getOrNull(0) as? Int ?: return
+                if (property != scaleX && property != scaleY) return
+                val view = animatedIcon(param) ?: return
+                val value = param.result as? Float ?: return
+                val factor = launcherIconScale(view)
+                if (factor > 0f) param.result = value / factor
+            }
+        })
     }
 
     private fun installLauncherIconSizeObserver(view: View) {

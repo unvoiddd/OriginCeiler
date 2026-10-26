@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,8 @@ import android.graphics.BitmapFactory
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.BlurOn
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SignalCellularAlt
@@ -47,7 +50,10 @@ import androidx.compose.material3.lightColorScheme as materialLightColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Text
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +72,8 @@ import kotlinx.coroutines.delay
 import java.util.zip.ZipInputStream
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import android.view.HapticFeedbackConstants
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -125,7 +133,7 @@ class MainActivity : ComponentActivity() {
             val scale = (state.uiScale / 100f).coerceIn(0.8f, 1.25f)
             CompositionLocalProvider(LocalDensity provides Density(density.density * scale, density.fontScale * scale)) {
                 MiuixTheme(colors = colors) {
-                    MaterialTheme(colorScheme = appColors) {
+                    MaterialTheme(colorScheme = appColors, typography = originTypography()) {
                         OriginIconsApp(state, model)
                     }
                 }
@@ -136,11 +144,17 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun OriginIconsApp(state: UiState, model: MainViewModel) {
+    val context = LocalContext.current
+    remember { Onboarding.init(context) }
+    val onboarding = Onboarding.visible
     Scaffold(modifier = Modifier.fillMaxSize(), containerColor = OriginBgDark) {
         Box(modifier = Modifier.fillMaxSize()) {
             OriginToolboxNavigation(state, model)
+            AnimatedVisibility(visible = onboarding, enter = fadeIn(), exit = fadeOut(tween(600))) {
+                OnboardingScreen(state, model) {}
+            }
             OverlayDialog(
-                show = state.showIntro,
+                show = state.showIntro && !onboarding,
                 title = "Root access required",
                 summary = "Grant root access before using OriginCeiler. Apply icon packs while Minimalistic, Delicate, or another system icon style is active.",
                 onDismissRequest = null

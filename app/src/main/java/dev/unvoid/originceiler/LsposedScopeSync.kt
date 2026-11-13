@@ -11,7 +11,6 @@ object LsposedScopeSync {
         "com.android.phone",
         "com.bbk.launcher2",
         "com.bbk.theme",
-        "com.google.android.inputmethod.latin",
         "com.google.android.googlequicksearchbox",
         "com.iqoo.powersaving",
         "com.vivo.ai.copilot",
@@ -27,7 +26,8 @@ object LsposedScopeSync {
         "com.vivo.upslide",
         "com.vivo.card",
         "com.vivo.permissionmanager",
-        "com.android.permissioncontroller"
+        "com.android.permissioncontroller",
+        "com.bbk.updater"
     )
 
     fun sync(apkPath: String): Boolean {

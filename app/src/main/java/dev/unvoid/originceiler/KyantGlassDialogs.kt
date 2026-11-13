@@ -228,7 +228,7 @@ object KyantGlassDialogs {
     /** Edge glow and rim highlight over vivo's own blur plate. */
     private class RimOnly(view: View) : Drawable() {
         private val ref = java.lang.ref.WeakReference(view)
-        private val renderer = KyantGlass.Renderer()
+        private val renderer = KyantGlass.Renderer(KyantGlass.Zone.SYSTEM)
         private val rect = RectF()
         private val radii = FloatArray(4)
 

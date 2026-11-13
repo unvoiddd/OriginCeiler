@@ -89,9 +89,15 @@ object KyantGlassTouch {
 
     /** Returns true when the event is consumed (the dragged plate holds the gesture). */
     private fun onRootTouch(root: View, event: MotionEvent): Boolean {
-        val cfg = KyantGlass.config
-        val glowOn = cfg[KyantGlass.KEY_TOUCH_GLOW] > 0 || cfg[KyantGlass.KEY_NEIGHBOR_GLOW] > 0
-        val elasticOn = cfg[KyantGlass.KEY_ELASTIC] > 0
+        // Freestyle's editor owns the gesture: dragging a tile must not stretch the glass.
+        if (FreestyleControlCenter.editor != null) {
+            elastic?.cancel()
+            elastic = null
+            pressed = false
+            return false
+        }
+        val glowOn = KyantGlass.anyLook { it[KyantGlass.KEY_TOUCH_GLOW] > 0 || it[KyantGlass.KEY_NEIGHBOR_GLOW] > 0 }
+        val elasticOn = KyantGlass.anyLook { it[KyantGlass.KEY_ELASTIC] > 0 }
         if (!glowOn && !elasticOn) return false
         var consume = false
         when (event.actionMasked) {
@@ -205,9 +211,12 @@ object KyantGlassTouch {
 
     /** Glass hosts that may stretch → which view stretches for them. */
     private val hosts = Collections.synchronizedMap(WeakHashMap<View, (View) -> View?>())
+    /** The zone whose stretch setting a host follows. */
+    private val hostZones = Collections.synchronizedMap(WeakHashMap<View, KyantGlass.Zone>())
 
-    fun registerHost(host: View, target: (View) -> View?) {
+    fun registerHost(host: View, target: (View) -> View?, zone: KyantGlass.Zone? = null) {
         if (!hosts.containsKey(host)) hosts[host] = target
+        if (zone != null) hostZones[host] = zone
     }
 
     /** Siblings drawn over a glass plate (inside its bounds, after it): the plate's content. */
@@ -334,7 +343,7 @@ object KyantGlassTouch {
             }
         }
         if (!matrixMode) press.followers = overlaying(host)
-        tune(press, target)
+        tune(press, target, hostZones[host])
         animating[target] = press
         press.press()
         elastic = Active(target, press).also {
@@ -360,8 +369,8 @@ object KyantGlassTouch {
      * HyperLight's button constants at 100 %; the setting scales them. Big cards squeeze less
      * (0.88 is made for round buttons: a full-width card would visibly jump).
      */
-    private fun tune(press: LiquidPress, view: View) {
-        val s = KyantGlass.config[KyantGlass.KEY_ELASTIC].coerceIn(0, 100) / 100f
+    private fun tune(press: LiquidPress, view: View, zone: KyantGlass.Zone?) {
+        val s = KyantGlass.configFor(zone)[KyantGlass.KEY_ELASTIC].coerceIn(0, 100) / 100f
         val shortDp = minOf(view.width, view.height) / view.resources.displayMetrics.density
         val depth = when {
             shortDp <= 96f -> 0.12f

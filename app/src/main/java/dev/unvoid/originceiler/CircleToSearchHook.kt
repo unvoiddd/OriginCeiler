@@ -19,6 +19,7 @@ import android.database.ContentObserver
 import android.graphics.Canvas
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -82,6 +83,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
     private val launcherIconObserverInstalled = AtomicBoolean(false)
     private val launcherIconInternalScale = ThreadLocal<Boolean>()
     private var launcherIconPack: LauncherIconPack? = null
+    private val loggedColorOsIcons = java.util.Collections.synchronizedSet(mutableSetOf<String>())
     private val aospVolumeDialogs = Collections.synchronizedMap(WeakHashMap<Any, Any>())
     private val settingsOriginalTopMargins = Collections.synchronizedMap(WeakHashMap<View, Int>())
     private val settingsOriginalHorizontalMargins = Collections.synchronizedMap(WeakHashMap<View, Pair<Int, Int>>())
@@ -121,6 +123,11 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         // OriginUI dialogs are bundled into every app: style them wherever the module is loaded.
         runCatching { KyantGlassDialogs.install(loadPackageParam.classLoader) }
             .onFailure(XposedBridge::log)
+        // Liquid switches and sliders: every app the module is loaded into, not system_server.
+        if (loadPackageParam.packageName != "android") {
+            runCatching { KyantGlassControls.install() }
+                .onFailure(XposedBridge::log)
+        }
         if (loadPackageParam.packageName in setOf(
                 "com.android.systemui",
                 "com.bbk.launcher2",
@@ -132,7 +139,6 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 "com.vivo.upslide",
                 "com.vivo.musicwidgetmix",
                 "com.vivo.musicmixcard",
-                "com.google.android.inputmethod.latin",
                 "com.android.settings",
                 "com.android.phone",
                 "com.vivo.systemuiplugin",
@@ -147,12 +153,20 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         ) {
             XposedBridge.log("OriginIcons loaded: ${loadPackageParam.packageName}")
         }
+        if (loadPackageParam.packageName in OtaUpdaterHook.PACKAGES) {
+            runCatching { OtaUpdaterHook.install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+        }
         if (loadPackageParam.packageName == "com.android.systemui") {
             runCatching { PopOutButtonsHook.installSystemUi() }
                 .onFailure(XposedBridge::log)
             runCatching { MaterialOriginOsLockscreenHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { LockscreenQuickToolGlassHook().install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { KeepLockscreenNotifications.install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { NowBarHook.install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { MaterialOriginOsHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
@@ -163,6 +177,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
             runCatching { LiquidVivoGlassHook.install(loadPackageParam.classLoader, loadPackageParam.packageName) }
                 .onFailure(XposedBridge::log)
             runCatching { KyantGlassHook.installSystemUi(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { FreestyleControlCenter.install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { NativeBlurHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
@@ -206,6 +222,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                     .onFailure(XposedBridge::log)
                 runCatching { LockscreenQuickToolGlassHook().install(loadPackageParam.classLoader) }
                     .onFailure(XposedBridge::log)
+                runCatching { NowBarHook.install(loadPackageParam.classLoader) }
+                    .onFailure(XposedBridge::log)
                 runCatching { MaterialOriginOsStatusFontHook().install() }
                     .onFailure(XposedBridge::log)
                 runCatching { StatusBarIconScaleHook().install(loadPackageParam.classLoader) }
@@ -221,6 +239,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
             }
             runCatching { hookExternalSettingsTheme(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
+            runCatching { IosMotionHook.installSystemUi(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
         }
         if (loadPackageParam.packageName == "com.bbk.launcher2") {
             runCatching { LauncherGridHook().install(loadPackageParam.classLoader) }
@@ -229,9 +249,15 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                 .onFailure(XposedBridge::log)
             runCatching { ShakePhysicsHook().install(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
+                .onFailure(XposedBridge::log)
             runCatching { KyantGlassHook.installLauncher() }
                 .onFailure(XposedBridge::log)
             runCatching { KyantGlassPanels.installLauncher() }
+                .onFailure(XposedBridge::log)
+            runCatching { IosIconStyleHook.install(loadPackageParam.classLoader) }
+                .onFailure(XposedBridge::log)
+            runCatching { HomePillHook.installLauncher() }
+                .onFailure(XposedBridge::log)
                 .onFailure(XposedBridge::log)
             runCatching { hookCircleToSearch(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
@@ -276,6 +302,8 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         }
         val processName = runCatching { loadPackageParam.javaClass.getField("processName").get(loadPackageParam) as? String }.getOrNull()
         if (loadPackageParam.packageName == "com.vivo.upslide" || processName == "com.vivo.upslide") {
+            runCatching { HomePillHook.installUpslide() }
+                .onFailure(XposedBridge::log)
             runCatching { hookNavigationHandle(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { KyantGlassPanels.installSidebar() }
@@ -294,10 +322,6 @@ class CircleToSearchHook : IXposedHookLoadPackage {
             runCatching { hookOriginPlayerClassLoading(loadPackageParam.classLoader) }
                 .onFailure(XposedBridge::log)
             runCatching { MaterialOriginPlayerHook().install(loadPackageParam.classLoader) }
-                .onFailure(XposedBridge::log)
-        }
-        if (loadPackageParam.packageName == "com.google.android.inputmethod.latin") {
-            runCatching { GboardBlurHook().install() }
                 .onFailure(XposedBridge::log)
         }
     }
@@ -681,14 +705,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
     }
 
     private fun hookMonetIconRasterizers(classLoader: ClassLoader) {
-        val candidates = listOf(
-            "x8.a",
-            "y8.a",
-            "z8.a",
-            "w8.a",
-            "com.bbk.launcher2.launcherIcon.LauncherIconImpl",
-            "com.bbk.launcher2.launcherIcon.data.iconcache.IconManager"
-        )
+        val candidates = LauncherCompat.names(classLoader).rasterizers
         candidates.forEach { className ->
             runCatching {
                 val target = Class.forName(className, false, classLoader)
@@ -784,11 +801,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
     }
 
     private fun hookMonetHotseatIcons(classLoader: ClassLoader) {
-        listOf(
-            "com.bbk.launcher2.launcherIcon.data.iconcache.IconManager",
-            "x8.a",
-            "y8.a"
-        ).forEach { className ->
+        LauncherCompat.names(classLoader).rasterizers.forEach { className ->
             runCatching {
                 val target = Class.forName(className, false, classLoader)
                 target.declaredMethods.filter { method ->
@@ -807,7 +820,9 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                             // the workspace when the app is known, recolor the vivo icon otherwise.
                             val packageName = param.args.firstNotNullOfOrNull { arg ->
                                 arg?.takeIf { it !is Context && it !is Drawable && it !is Boolean && it !is Int }?.let {
-                                    runCatching { it.javaClass.getMethod("L4").invoke(it) as? ComponentName }.getOrNull()
+                                    LauncherCompat.componentGetters.firstNotNullOfOrNull { name ->
+                                    runCatching { it.javaClass.getMethod(name).invoke(it) as? ComponentName }.getOrNull()
+                                }
                                         ?.let { component -> if (component.className == MonetThemedIconFactory.VIVO_DIALER_CLASS) component.className else component.packageName }
                                 }
                             }
@@ -829,11 +844,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         // These are the same bitmap-producing paths used by the Monet hooks. Running
         // after them lets a selected pack take precedence in the launcher cache.
         var hooked = 0
-        listOf(
-            "x8.a", "y8.a", "z8.a", "w8.a",
-            "com.bbk.launcher2.launcherIcon.LauncherIconImpl",
-            "com.bbk.launcher2.launcherIcon.data.iconcache.IconManager"
-        ).forEach { className ->
+        LauncherCompat.names(classLoader).rasterizers.forEach { className ->
             runCatching {
                 val target = Class.forName(className, false, classLoader)
                 target.declaredMethods.filter { method ->
@@ -853,7 +864,9 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                             val original = param.result as? Bitmap ?: return
                             val model = if (modelIndex >= 0) param.args.getOrNull(modelIndex) else null
                             val modelComponent = model?.let {
-                                runCatching { it.javaClass.getMethod("L4").invoke(it) as? ComponentName }.getOrNull()
+                                LauncherCompat.componentGetters.firstNotNullOfOrNull { name ->
+                                    runCatching { it.javaClass.getMethod(name).invoke(it) as? ComponentName }.getOrNull()
+                                }
                             }
                             val component = param.args.filterIsInstance<ComponentName>().firstOrNull() ?: modelComponent
                             val raw = param.args.filterIsInstance<String>().firstOrNull { it.contains('.') }
@@ -861,9 +874,19 @@ class CircleToSearchHook : IXposedHookLoadPackage {
                                 ?.let(ComponentName::unflattenFromString)
                             val packageName = component?.packageName ?: parsed?.packageName ?: raw?.takeIf { '/' !in it }
                             if (packageName.isNullOrBlank()) return
-                            val resolver = launcherIconPack ?: LauncherIconPack(application).also { launcherIconPack = it }
                             val source = param.args.filterIsInstance<Drawable>().firstOrNull()
-                            resolver.bitmap(component ?: parsed, packageName, original, source)?.let { param.result = it }
+                            runCatching { IosIconStyleHook.compose(application, component ?: parsed, packageName, original, source) }
+                                .getOrNull()?.let {
+                                    param.result = it
+                                    return
+                                }
+                            val resolver = launcherIconPack ?: LauncherIconPack(application).also { launcherIconPack = it }
+                            resolver.bitmap(component ?: parsed, packageName, original, source)?.let {
+                                param.result = it
+                                return
+                            }
+                            applyColorOsStyle(application, component ?: parsed, packageName, original, source)
+                                ?.let { param.result = it }
                         }
                     })
                     hooked++
@@ -871,6 +894,30 @@ class CircleToSearchHook : IXposedHookLoadPackage {
             }.onFailure(XposedBridge::log)
         }
         Log.i("OriginIconPack", "Launcher bitmap hooks installed: $hooked")
+    }
+
+    /** ColorOS icon styles: re-render the app's own (adaptive) icon instead of vivo's bitmap. */
+    private fun applyColorOsStyle(
+        application: Context,
+        component: ComponentName?,
+        packageName: String,
+        original: Bitmap,
+        source: Drawable?
+    ): Bitmap? {
+        if (ColorOsIconStyles.style(application) == ColorOsIconStyles.OFF) return null
+        if (Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) == 1) return null
+        if (original.width <= 0 || original.width != original.height) return null
+        val pm = application.packageManager
+        val icon = component?.takeIf { it.className.isNotEmpty() }?.let { runCatching { pm.getActivityIcon(it) }.getOrNull() }
+            ?: runCatching { pm.getApplicationIcon(packageName) }.getOrNull()
+            ?: source
+            ?: return null
+        if (loggedColorOsIcons.add(packageName) && loggedColorOsIcons.size < 40) {
+            val adaptive = icon as? AdaptiveIconDrawable
+            XposedBridge.log("OriginColorOsIcons: $packageName icon=${icon.javaClass.name} ${icon.intrinsicWidth} " +
+                "bg=${adaptive?.background?.javaClass?.name} fg=${adaptive?.foreground?.javaClass?.name}")
+        }
+        return ColorOsIconStyles.render(application, icon, original.width)?.also { it.density = original.density }
     }
 
     private fun hookMusicWidgetAllowLists(classLoader: ClassLoader) {
@@ -2864,10 +2911,7 @@ class CircleToSearchHook : IXposedHookLoadPackage {
         var iconClass = false
         while (type != null) {
             val name = type.name
-            if (name == "com.bbk.launcher2.launcherIcon.ui.icon.ComponentIcon" ||
-                name == "com.bbk.launcher2.launcherIcon.ui.icon.ItemIcon" ||
-                name == "com.bbk.launcher2.launcherIcon.ui.icon.AppIcon"
-            ) {
+            if (name in LauncherCompat.iconViewClasses) {
                 iconClass = true
                 break
             }

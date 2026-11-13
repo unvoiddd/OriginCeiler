@@ -190,7 +190,7 @@ object KyantGlassPanels {
     /** Glass over the recents' blur: lens, light tint, rim and the light under the finger (no stretch). */
     private class ClearGlass(view: View) : android.graphics.drawable.Drawable() {
         private val ref = java.lang.ref.WeakReference(view)
-        private val renderer = KyantGlass.Renderer()
+        private val renderer = KyantGlass.Renderer(KyantGlass.Zone.HOME)
         private val rect = android.graphics.RectF()
         private val radii = FloatArray(4)
 

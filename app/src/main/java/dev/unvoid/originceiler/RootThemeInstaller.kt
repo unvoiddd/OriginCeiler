@@ -75,6 +75,17 @@ class RootThemeInstaller(private val context: Context) {
         return execute("settings put global originicons_pixel_home_layout $value; am force-stop com.bbk.launcher2; am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null")
     }
 
+    /** Applied live by the launcher (it observes the setting): no restart. */
+    /** Applied live: upslide observes the setting and asks the launcher for its state. */
+    fun setHideHomePill(enabled: Boolean): RootResult =
+        execute("settings put global ${HomePillHook.KEY} ${if (enabled) 1 else 0}")
+
+    /** Read live by the hooks on every animation: no restart. */
+    fun setGlobalFlag(key: String, enabled: Boolean): RootResult {
+        if (key !in setOf(IosMotionHook.KEY_BANNER, IosIconStyles.KEY_ENABLED)) return RootResult(false, "Invalid setting")
+        return execute("settings put global $key ${if (enabled) 1 else 0}")
+    }
+
     fun setLauncherIconSize(value: Int): RootResult {
         return execute("settings put global originroottoolbox_launcher_icon_size ${value.coerceIn(70, 150)}")
     }
@@ -372,7 +383,7 @@ EOF
     }
 
     fun setLiquidVivoParameter(key: String, value: Int): RootResult {
-        val known = key.startsWith(LiquidVivoGlassHook.PREFIX) || key.startsWith(KyantGlass.PREFIX)
+        val known = key.startsWith(LiquidVivoGlassHook.PREFIX) || key.startsWith(KyantGlass.PREFIX) || key.startsWith(NowBar.PREFIX)
         if (!known || key.any { !it.isLetterOrDigit() && it != '_' }) {
             return RootResult(false, "Invalid glass setting")
         }
@@ -395,6 +406,21 @@ EOF
         )
         if (key !in allowed || value.toFloatOrNull() == null) return RootResult(false, "Invalid pop out setting")
         return execute("settings put global $key $value")
+    }
+
+    /** Freestyle control center: SystemUI follows the setting live, no restart needed. */
+    fun setFreestyleControlCenter(enabled: Boolean): RootResult =
+        execute("settings put global ${FreestyleControlCenter.SETTING_ENABLED} ${if (enabled) 1 else 0}")
+
+    fun setIos26ControlCenter(enabled: Boolean): RootResult =
+        execute("settings put global ${FreestyleControlCenter.SETTING_IOS} ${if (enabled) 1 else 0}")
+
+    fun resetFreestyleLayout(): RootResult =
+        execute("settings delete global ${FreestyleControlCenter.SETTING_LAYOUT}")
+
+    fun setIosLockscreen(enabled: Boolean): RootResult {
+        val value = if (enabled) 1 else 0
+        return execute("settings put global ${KeepLockscreenNotifications.SETTING_ENABLED} $value; am force-stop com.vivo.systemuiplugin; kill -9 \$(pidof com.android.systemui) 2>/dev/null || true")
     }
 
     fun setLockscreenQuickToolGlass(enabled: Boolean): RootResult {
@@ -518,14 +544,15 @@ EOF
         return execute("settings put global ${OriginIslandLiveUpdatesHook.SETTING_ALL_PROGRESS} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
     }
 
+    fun setCallsInOriginIsland(enabled: Boolean): RootResult =
+        execute("settings put global ${OriginIslandLiveUpdatesHook.SETTING_CALLS} ${if (enabled) 1 else 0}")
+
+    fun setOtpInOriginIsland(enabled: Boolean): RootResult =
+        execute("settings put global ${OriginIslandLiveUpdatesHook.SETTING_OTP} ${if (enabled) 1 else 0}")
+
     fun setFlashlightInOriginIsland(enabled: Boolean): RootResult {
         val value = if (enabled) 1 else 0
         return execute("settings put global ${OriginIslandLiveUpdatesHook.SETTING_FLASHLIGHT} $value; am force-stop com.vivo.systemuiplugin; killall com.android.systemui 2>/dev/null || true")
-    }
-
-    fun setGboardBlurBackground(enabled: Boolean): RootResult {
-        val value = if (enabled) 1 else 0
-        return execute("settings put global ${GboardBlurHook.SETTING_ENABLED} $value; am force-stop com.google.android.inputmethod.latin")
     }
 
     private fun scriptFile(name: String, content: String): File {

@@ -162,12 +162,14 @@ class LockscreenQuickToolGlassHook {
                 view, "",
                 backdrop = { v -> ScreenBackdropSource.getLockBackdrop(v.context) },
                 shape = ::plateShape,
+                zone = KyantGlass.Zone.LOCKSCREEN,
                 radius = { _, w, h -> minOf(w, h) / 2f }
             )
         }
         KyantGlass.track(view)
         if (view.background !== glass) view.background = glass
         sides[view] = flashlight
+        applyIosGlyph(view, flashlight)
         place(view)
 
         view.isClickable = true
@@ -197,6 +199,7 @@ class LockscreenQuickToolGlassHook {
             if (view.isAttachedToWindow && enabled(view.context)) {
                 val glass = glassByView[view]
                 if (glass != null && view.background !== glass) view.background = glass
+                sides[view]?.let { applyIosGlyph(view as ImageView, it) }
                 place(view)
             }
             true
@@ -367,7 +370,8 @@ class LockscreenQuickToolGlassHook {
 
     /** HyperLight's blur button: a circle [PLATE_DP] across, centred on the icon. */
     private fun plateShape(view: View, rect: RectF): Float {
-        val d = KyantGlass.config[KyantGlass.KEY_SHORTCUT_SIZE].coerceIn(36, 100) * view.resources.displayMetrics.density
+        val sizeDp = plateDp()
+        val d = sizeDp * view.resources.displayMetrics.density
         iconCenter(view, shapePoint)
         val cx = shapePoint[0]
         val cy = shapePoint[1]
@@ -392,7 +396,10 @@ class LockscreenQuickToolGlassHook {
         torchCameraId = findTorchCamera(manager)
         manager.registerTorchCallback(object : CameraManager.TorchCallback() {
             override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
-                if (cameraId == torchCameraId) torchEnabled = enabled
+                if (cameraId == torchCameraId) {
+                    torchEnabled = enabled
+                    synchronized(sides) { sides.keys.toList() }.forEach { v -> if (sides[v] == true) v.invalidate() }
+                }
             }
         }, Handler(Looper.getMainLooper()))
     }
@@ -430,14 +437,32 @@ class LockscreenQuickToolGlassHook {
         return Settings.Global.getInt(context.contentResolver, SETTING_ENABLED, 0) == 1
     }
 
+    private fun plateDp(): Int = KyantGlass.config[KyantGlass.KEY_SHORTCUT_SIZE].coerceIn(36, 100)
+
+    /** iOS-style flashlight / camera glyphs instead of vivo's icons. */
+    private fun applyIosGlyph(view: ImageView, flashlight: Boolean) {
+        if (!torchCallbackRegistered) runCatching {
+            val manager = cameraManager ?: view.context.getSystemService(CameraManager::class.java).also { cameraManager = it }
+            initializeTorch(manager)
+        }
+        val current = view.drawable
+        val plate = plateDp().toFloat()
+        if (current is IosGlyphDrawable && current.flashlight == flashlight && current.plateDp == plate) {
+            current.torchOn = flashlight && torchEnabled
+            return
+        }
+        view.setImageDrawable(IosGlyphDrawable(view.resources.displayMetrics.density, flashlight, view.context, plate).also { it.torchOn = flashlight && torchEnabled })
+    }
+
     companion object {
         const val SETTING_ENABLED = "originroottoolbox_lockscreen_quicktool_glass"
 
         private const val QUICK_TOOL_CLASS = "com.vivo.systemuiplugin.keyguard.tools.QuickToolView"
         private const val QUICK_TOOL_WRAPPER_CLASS = "com.vivo.systemuiplugin.keyguard.legacy.keyguard.views.area.QuickToolAreaWrapper"
 
-        private const val INSET_X_DP = 64f
-        private const val INSET_Y_DP = 80f
+        /** iOS placement: plate centre 71 dp from the side, 86 dp above the bottom. */
+        private const val INSET_X_DP = 71f
+        private const val INSET_Y_DP = 86f
 
         private const val DRAG_SLOP_DP = 8f
         private const val FIRE_GUARD_MILLIS = 800L

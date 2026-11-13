@@ -48,6 +48,17 @@ class OriginIslandLiveUpdatesHook {
         runCatching { hookLiveUpdateDispatch(classLoader) }.onFailure(XposedBridge::log)
         runCatching { hookFlashlightContent(classLoader) }.onFailure(XposedBridge::log)
         registerFlashlightIsland(classLoader)
+        attachCards(0)
+    }
+
+    /** Call / OTP cards are mirrored between SystemUI and the island process (see IslandNotificationCards). */
+    private fun attachCards(attempt: Int) {
+        val application = currentApplication()
+        if (application != null) {
+            IslandNotificationCards.attach(application)
+            return
+        }
+        if (attempt < 30) mainHandler.postDelayed({ attachCards(attempt + 1) }, 500L)
     }
 
     private fun hookLockIslandVisibility() {
@@ -169,6 +180,7 @@ class OriginIslandLiveUpdatesHook {
         XposedBridge.hookAllMethods(listenerType, "onNotificationPosted", object : XC_MethodHook(Int.MAX_VALUE) {
             override fun afterHookedMethod(param: MethodHookParam) {
                 val sbn = param.args.filterIsInstance<StatusBarNotification>().firstOrNull() ?: return
+                if (handleNotificationCard(classLoader, sbn)) return
                 val notification = sbn.notification
                 if (convertedProgressKeys.contains(sbn.key) &&
                     (!isProgressNotification(notification) || isFinishedProgress(notification))
@@ -188,6 +200,7 @@ class OriginIslandLiveUpdatesHook {
         XposedBridge.hookAllMethods(listenerType, "onNotificationRemoved", object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam) {
                 val sbn = param.args.filterIsInstance<StatusBarNotification>().firstOrNull() ?: return
+                runCatching { removeSourceCard(classLoader, sbn.key) }.onFailure(XposedBridge::log)
                 if (!convertedProgressKeys.remove(sbn.key)) return
                 runCatching { removeFromNativeIsland(classLoader, sbn.key) }.onFailure(XposedBridge::log)
             }
@@ -202,13 +215,31 @@ class OriginIslandLiveUpdatesHook {
         }
         XposedBridge.hookAllMethods(contentType, "setContentView", object : XC_MethodHook(Int.MAX_VALUE) {
             override fun beforeHookedMethod(param: MethodHookParam) {
-                if (!flashlightEnabled()) return
                 val host = param.thisObject as? View ?: return
-                val incoming = param.args.firstOrNull() as? View ?: return
-                if (incoming is FlashlightIslandControlView) return
+                IslandNotificationCards.attach(host.context)
                 val entryName = runCatching { host.resources.getResourceEntryName(host.id) }.getOrNull() ?: return
-                if (entryName != "cap_expanded" || !containsFlashlightMarker(incoming)) return
-                param.args[0] = FlashlightIslandControlView(host.context)
+                if (entryName != "cap_expanded") return
+                val incoming = param.args.firstOrNull() as? View
+                val flashlight = flashlightEnabled() && incoming != null &&
+                    (incoming is FlashlightIslandControlView || containsFlashlightMarker(incoming))
+                // The flashlight card is a narrow iOS-style tile; everything else keeps the stock full-width card.
+                host.layoutParams?.let { params ->
+                    val width = if (flashlight) ViewGroup.LayoutParams.WRAP_CONTENT else ViewGroup.LayoutParams.MATCH_PARENT
+                    if (params.width != width) {
+                        params.width = width
+                        host.layoutParams = params
+                    }
+                }
+                if (flashlight && incoming !is FlashlightIslandControlView) param.args[0] = FlashlightIslandControlView(host.context)
+                if (!flashlight && incoming != null && incoming !is CallIslandView && incoming !is OtpIslandView &&
+                    (callsEnabled() || otpEnabled())
+                ) {
+                    when (val card = IslandNotificationCards.findIn(incoming)) {
+                        is IslandNotificationCards.CallCard -> param.args[0] = CallIslandView(host.context, card.islandTitle)
+                        is IslandNotificationCards.OtpCard -> param.args[0] = OtpIslandView(host.context, card.islandTitle)
+                        null -> Unit
+                    }
+                }
             }
         })
     }
@@ -304,7 +335,7 @@ class OriginIslandLiveUpdatesHook {
                 lockIslandActive.set(false)
                 wasShowing = false
                 lastLocked = null
-                handler.postDelayed(poller, LOCK_POLL_INTERVAL)
+                // Screen off: stop polling, ACTION_SCREEN_ON starts it again.
                 return@Runnable
             }
             val showing = keyguard.isKeyguardLocked
@@ -329,7 +360,8 @@ class OriginIslandLiveUpdatesHook {
                     handler.postDelayed(hide, LOCK_HOME_DELAY)
                 }
             }
-            handler.postDelayed(poller, LOCK_POLL_INTERVAL)
+            // Unlocked and the island is gone: nothing changes until the screen goes off and on again.
+            if (showing || wasShowing || lockIslandActive.get()) handler.postDelayed(poller, LOCK_POLL_INTERVAL)
         }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -421,13 +453,7 @@ class OriginIslandLiveUpdatesHook {
         val maximum = FlashlightIslandControlView.maximumStrength(application).coerceAtLeast(1)
         val progress = Settings.Global.getInt(application.contentResolver, FlashlightIslandControlView.SETTING_STRENGTH, maximum)
             .coerceIn(1, maximum)
-        val icon = Icon.createWithResource("dev.unvoid.originceiler", R.drawable.ic_flashlight_island)
-        val offIntent = PendingIntent.getBroadcast(
-            application,
-            FLASHLIGHT_NOTIFICATION_ID,
-            Intent(ACTION_FLASHLIGHT_OFF).setPackage(application.packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val icon = Icon.createWithResource("dev.unvoid.originceiler", R.drawable.ic_flashlight_island_on)
         val style = Notification.ProgressStyle()
             .addProgressSegment(Notification.ProgressStyle.Segment(maximum))
             .setProgress(progress)
@@ -444,15 +470,149 @@ class OriginIslandLiveUpdatesHook {
         notification.extras.putInt("progress_style_business_type", 1)
         notification.extras.putString("island.superx.landingInfo", packageName)
         notification.extras.putParcelable("island.superx.leftInfo.icon", icon)
-        notification.extras.putCharSequence("island.superx.leftInfo.content", FLASHLIGHT_TITLE)
-        notification.extras.putCharSequence("island.superx.rightInfo.capsuleContent", "Выкл.")
-        notification.extras.putInt("island.superx.rightInfo.capsuleBgColor", 0x33ffffff)
-        notification.extras.putParcelable("island.superx.rightInfo.clickResp", offIntent)
+        notification.extras.putCharSequence("island.superx.leftInfo.content", "")
         return StatusBarNotification(
             packageName,
             packageName,
             FLASHLIGHT_NOTIFICATION_ID,
             "originceiler_flashlight",
+            packageInfo.uid,
+            0,
+            0,
+            notification,
+            android.os.UserHandle.getUserHandleForUid(packageInfo.uid),
+            System.currentTimeMillis()
+        )
+    }
+
+    /** Calls and one-time codes: returns true when the notification was turned into an island card. */
+    private fun handleNotificationCard(classLoader: ClassLoader, sbn: StatusBarNotification): Boolean {
+        if (sbn.tag?.startsWith("originceiler_") == true) return false
+        val notification = sbn.notification
+        if (callsEnabled() && IslandNotificationCards.isCall(notification)) {
+            runCatching { showCallCard(classLoader, sbn) }.onFailure(XposedBridge::log)
+            return true
+        }
+        // A call notification that turned into something else (missed call, call ended) leaves the island.
+        if (cardSources[sbn.key]?.tag == CALL_TAG) runCatching { removeSourceCard(classLoader, sbn.key) }
+        if (otpEnabled()) {
+            val code = IslandNotificationCards.extractOtp(notification) ?: return false
+            runCatching { showOtpCard(classLoader, sbn, code) }.onFailure(XposedBridge::log)
+            return true
+        }
+        return false
+    }
+
+    private fun showCallCard(classLoader: ClassLoader, sbn: StatusBarNotification) {
+        currentApplication()?.let(IslandNotificationCards::attach)
+        val existing = cardSources[sbn.key]
+        // Vivo already shows its own capsule for this call: don't duplicate it.
+        if (existing == null && nativeTracks(classLoader, sbn.key)) return
+        val notification = sbn.notification
+        val name = IslandNotificationCards.callName(notification) ?: appLabel(sbn.packageName)
+        val actions = IslandNotificationCards.callActions(notification)
+        val chronometerBase = IslandNotificationCards.callChronometerBase(notification)
+        val subtitle = notification.extras.getCharSequence(Notification.EXTRA_TEXT)
+        val title = existing?.title ?: (IslandNotificationCards.MARKER + name)
+        val signature = listOf(name, subtitle, chronometerBase != null, actions.joinToString { "${it.kind}:${it.label}" }).joinToString("|")
+        IslandNotificationCards.put(
+            IslandNotificationCards.CallCard(
+                title,
+                onDismiss = { mainHandler.post { runCatching { removeSourceCard(classLoader, sbn.key) } } },
+                packageName = sbn.packageName,
+                name = name,
+                subtitle = subtitle,
+                chronometerBase = chronometerBase,
+                avatar = IslandNotificationCards.callAvatar(notification),
+                contentIntent = notification.contentIntent,
+                actions = actions
+            )
+        )
+        if (existing != null && existing.signature == signature) return
+        val synthetic = cardNotification(sbn, CALL_TAG, title, R.drawable.ic_island_call, "")
+        cardSources[sbn.key] = SourceCard(CALL_TAG, title, synthetic.key, signature)
+        sendToNativeIsland(classLoader, synthetic, true)
+    }
+
+    private fun showOtpCard(classLoader: ClassLoader, sbn: StatusBarNotification, code: String) {
+        currentApplication()?.let(IslandNotificationCards::attach)
+        val existing = cardSources[sbn.key]
+        if (existing != null && existing.signature == code) return
+        if (existing != null) removeSourceCard(classLoader, sbn.key)
+        val title = IslandNotificationCards.MARKER + IslandNotificationCards.MARKER + code
+        IslandNotificationCards.put(
+            IslandNotificationCards.OtpCard(
+                title,
+                onDismiss = { mainHandler.post { runCatching { removeSourceCard(classLoader, sbn.key) } } },
+                packageName = sbn.packageName,
+                appLabel = appLabel(sbn.packageName),
+                code = code,
+                contentIntent = sbn.notification.contentIntent
+            )
+        )
+        val synthetic = cardNotification(sbn, OTP_TAG, title, R.drawable.ic_island_otp, code)
+        cardSources[sbn.key] = SourceCard(OTP_TAG, title, synthetic.key, code)
+        sendToNativeIsland(classLoader, synthetic, true)
+        mainHandler.postDelayed({
+            if (cardSources[sbn.key]?.title == title) runCatching { removeSourceCard(classLoader, sbn.key) }
+        }, OTP_TIMEOUT)
+    }
+
+    private fun removeSourceCard(classLoader: ClassLoader, sourceKey: String) {
+        val entry = cardSources.remove(sourceKey) ?: return
+        IslandNotificationCards.remove(entry.title)
+        convertedProgressKeys.remove(entry.syntheticKey)
+        removeFromNativeIsland(classLoader, entry.syntheticKey)
+    }
+
+    private fun nativeTracks(classLoader: ClassLoader, key: String): Boolean = runCatching {
+        val policyType = Class.forName(LIVE_POLICY_CLASS, false, classLoader)
+        val policy = policyType.getDeclaredMethod("getInstance").apply { isAccessible = true }.invoke(null)
+        (policyType.getDeclaredField("mCurrentShowChipsNotisInfo").apply { isAccessible = true }.get(policy) as? Map<*, *>)
+            ?.containsKey(key) == true
+    }.getOrDefault(false)
+
+    private fun appLabel(packageName: String): CharSequence {
+        val application = currentApplication() ?: return packageName
+        return runCatching {
+            application.packageManager.getApplicationLabel(application.packageManager.getApplicationInfo(packageName, 0))
+        }.getOrDefault(packageName)
+    }
+
+    private fun cardNotification(
+        source: StatusBarNotification,
+        tag: String,
+        title: String,
+        iconRes: Int,
+        leftContent: CharSequence
+    ): StatusBarNotification {
+        val application = currentApplication() ?: error("Application is unavailable")
+        val packageName = "com.android.systemui"
+        val packageInfo = application.packageManager.getApplicationInfo(packageName, 0)
+        val icon = Icon.createWithResource("dev.unvoid.originceiler", iconRes)
+        val style = Notification.ProgressStyle()
+            .addProgressSegment(Notification.ProgressStyle.Segment(1))
+            .setProgress(1)
+            .setStyledByProgress(true)
+        val notification = Notification.Builder(application, tag)
+            .setSmallIcon(icon)
+            .setContentTitle(title)
+            .setContentText(title)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setStyle(style)
+            .build()
+        notification.extras.putString(Notification.EXTRA_TEMPLATE, "android.app.Notification\$ProgressStyle")
+        notification.extras.putInt("progress_style_business_type", 1)
+        notification.extras.putBoolean("notification.superx.showNotify", false)
+        notification.extras.putString("island.superx.landingInfo", packageName)
+        notification.extras.putParcelable("island.superx.leftInfo.icon", icon)
+        notification.extras.putCharSequence("island.superx.leftInfo.content", leftContent)
+        return StatusBarNotification(
+            packageName,
+            packageName,
+            source.key.hashCode(),
+            tag,
             packageInfo.uid,
             0,
             0,
@@ -706,7 +866,18 @@ class OriginIslandLiveUpdatesHook {
         return Settings.Global.getInt(application.contentResolver, SETTING_LOCK_SCREEN_STATE, 0) == 1
     }
 
-    private fun islandFeaturesEnabled(): Boolean = enabled() || allProgressEnabled() || flashlightEnabled()
+    private fun callsEnabled(): Boolean {
+        val application = currentApplication() ?: return false
+        return Settings.Global.getInt(application.contentResolver, SETTING_CALLS, 0) == 1
+    }
+
+    private fun otpEnabled(): Boolean {
+        val application = currentApplication() ?: return false
+        return Settings.Global.getInt(application.contentResolver, SETTING_OTP, 0) == 1
+    }
+
+    private fun islandFeaturesEnabled(): Boolean =
+        enabled() || allProgressEnabled() || flashlightEnabled() || callsEnabled() || otpEnabled()
 
     private fun currentApplication(): Application? {
         return runCatching {
@@ -719,6 +890,11 @@ class OriginIslandLiveUpdatesHook {
         const val SETTING_ALL_PROGRESS = "originroottoolbox_all_progress_origin_island"
         const val SETTING_FLASHLIGHT = "originroottoolbox_flashlight_origin_island"
         const val SETTING_LOCK_SCREEN_STATE = "originroottoolbox_lock_screen_state_origin_island"
+        const val SETTING_CALLS = "originroottoolbox_calls_origin_island"
+        const val SETTING_OTP = "originroottoolbox_otp_origin_island"
+        private const val CALL_TAG = "originceiler_call"
+        private const val OTP_TAG = "originceiler_otp"
+        private const val OTP_TIMEOUT = 60_000L
         private const val PLUGIN_LISTENER_CLASS = "com.vivo.systemuiplugin.systemui.statusbar.notification.PluginNotificationListenerImpl"
         private const val LIVE_POLICY_CLASS = "com.vivo.systemuiplugin.superx.notification.ongoing.SuperXOnGoingNotificationPolicy"
         private const val DYNAMIC_CAPSULE_CLASS = "com.vivo.island.view.DynamicCapsuleContainer"
@@ -745,6 +921,10 @@ class OriginIslandLiveUpdatesHook {
         private val lockIslandPollers = Collections.synchronizedMap(WeakHashMap<ClassLoader, Runnable>())
         private val convertedProgressKeys = Collections.synchronizedSet(mutableSetOf<String>())
         private val convertedProgressOperation = ThreadLocal<Int>()
+        private val mainHandler = Handler(Looper.getMainLooper())
+        private val cardSources = java.util.concurrent.ConcurrentHashMap<String, SourceCard>()
+
+        private class SourceCard(val tag: String, val title: String, val syntheticKey: String, val signature: String)
 
         private fun isProgressNotification(notification: Notification): Boolean {
             if (notification.category == Notification.CATEGORY_TRANSPORT || notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) return false

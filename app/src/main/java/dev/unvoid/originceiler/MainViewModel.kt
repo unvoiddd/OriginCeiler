@@ -1,6 +1,7 @@
 package dev.unvoid.originceiler
 
 import android.app.Application
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.provider.Settings
 import android.widget.Toast
@@ -37,6 +38,9 @@ data class UiState(
     val aospScale: Float = 1f,
     val circleToSearch: Boolean = false,
     val pixelHomeLayout: Boolean = false,
+    val hideHomePill: Boolean = false,
+    val iosBanners: Boolean = false,
+    val iosIconsMenu: Boolean = true,
     val nativeAospThemedIcons: Boolean = false,
     val monetIconScale: Float = 100f,
     val launcherIconSize: Float = 100f,
@@ -75,12 +79,16 @@ data class UiState(
     val clockGlassLightAngle: Float = 45f,
     val clockGlassTintStrength: Float = 25f,
     val lockscreenQuickToolGlass: Boolean = false,
+    val iosLockscreen: Boolean = false,
     val popOutButtons: Boolean = false,
+    val freestyleControlCenter: Boolean = false,
+    val ios26ControlCenter: Boolean = false,
     val shakePhysics: Boolean = false,
     /** LiquidVivo glass settings, keyed by their Settings.Global name. */
     val liquidVivo: Map<String, Int> = emptyMap(),
     /** Kyant iOS-26 glass settings, keyed by their Settings.Global name. */
     val kyantGlass: Map<String, Int> = emptyMap(),
+    val nowBar: Map<String, Int> = emptyMap(),
     val popOutDepth: Float = PopOutButtonsHook.DEFAULT_DEPTH,
     val popOutVolumeUpY: Float = PopOutButtonsHook.DEFAULT_VOLUME_UP_Y,
     val popOutVolumeDownY: Float = PopOutButtonsHook.DEFAULT_VOLUME_DOWN_Y,
@@ -120,13 +128,35 @@ data class UiState(
     val liveUpdatesInOriginIsland: Boolean = false,
     val allProgressInOriginIsland: Boolean = false,
     val flashlightInOriginIsland: Boolean = false,
-    val gboardBlurBackground: Boolean = false,
+    val callsInOriginIsland: Boolean = false,
+    val otpInOriginIsland: Boolean = false,
     val appThemeMode: Int = 1,
     val monetColors: Boolean = false,
     val uiScale: Float = 100f,
     val liquidGlassBar: Boolean = true,
+    val legacyIconPackMenu: Boolean = false,
     val autoHideBar: Boolean = true,
-    val showIntro: Boolean = true
+    val showIntro: Boolean = true,
+    val ota: OtaState = OtaState()
+)
+
+/** System Update page: captured OTA links, the fake version and updater controls. */
+data class OtaState(
+    val loaded: Boolean = false,
+    val busy: Boolean = false,
+    val captureEnabled: Boolean = true,
+    val updaterInstalled: Boolean = true,
+    val updaterDisabled: Boolean = false,
+    /** Firmware version the system reports now, faked or not. */
+    val version: String = "",
+    val versionNumber: String = "",
+    /** Real and shown firmware numbers while a fake update is active. */
+    val spoofFrom: String? = null,
+    val spoofTo: String? = null,
+    val target: String = "",
+    val preview: List<OtaPropChange> = emptyList(),
+    val captures: List<OtaCapture> = emptyList(),
+    val info: List<Pair<String, String>> = emptyList()
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -146,6 +176,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var iconPackOptionsJob: Job? = null
     private var notificationClockSizeJob: Job? = null
     private val liquidGlassSettingJobs = mutableMapOf<String, Job>()
+    private val otaTools = OtaRootTools(application)
+    private var otaProps: Map<String, String> = emptyMap()
+    private val otaHistoryListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == OtaStore.KEY_HISTORY) updateOta { copy(captures = OtaStore.load(getApplication())) }
+    }
     private val mutableState = MutableStateFlow(
         UiState(
             fullConversion = preferences.getBoolean("full_conversion", false),
@@ -159,6 +194,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             aospScale = preferences.getFloat("aosp_scale", 1f),
             circleToSearch = Settings.Global.getInt(application.contentResolver, "originicons_circle_to_search", 0) == 1,
             pixelHomeLayout = Settings.Global.getInt(application.contentResolver, "originicons_pixel_home_layout", 0) == 1,
+            hideHomePill = Settings.Global.getInt(application.contentResolver, HomePillHook.KEY, 0) == 1,
+            iosBanners = Settings.Global.getInt(application.contentResolver, IosMotionHook.KEY_BANNER, 0) == 1,
+            iosIconsMenu = Settings.Global.getInt(application.contentResolver, IosIconStyles.KEY_ENABLED, 1) == 1,
             nativeAospThemedIcons = Settings.Global.getInt(application.contentResolver, "originicons_themed_launcher_icons", 0) == 1,
             monetIconScale = Settings.Global.getInt(application.contentResolver, "originicons_monet_icon_scale", 100).toFloat(),
             launcherIconSize = Settings.Global.getInt(application.contentResolver, "originroottoolbox_launcher_icon_size", 100).toFloat(),
@@ -201,10 +239,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             clockGlassLightAngle = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_LIGHT_ANGLE)?.toFloatOrNull() ?: 45f,
             clockGlassTintStrength = Settings.Global.getString(application.contentResolver, CustomLockscreenClockHostView.SETTING_CLOCK_GLASS_TINT_STRENGTH)?.toFloatOrNull() ?: 25f,
             lockscreenQuickToolGlass = Settings.Global.getInt(application.contentResolver, LockscreenQuickToolGlassHook.SETTING_ENABLED, 0) == 1,
+            iosLockscreen = Settings.Global.getInt(application.contentResolver, KeepLockscreenNotifications.SETTING_ENABLED, 0) == 1,
             popOutButtons = Settings.Global.getInt(application.contentResolver, PopOutButtonsHook.SETTING_ENABLED, 0) == 1,
+            freestyleControlCenter = Settings.Global.getInt(application.contentResolver, FreestyleControlCenter.SETTING_ENABLED, 0) == 1,
+            ios26ControlCenter = Settings.Global.getInt(application.contentResolver, FreestyleControlCenter.SETTING_IOS, 0) == 1,
             shakePhysics = Settings.Global.getInt(application.contentResolver, ShakePhysicsHook.SETTING_ENABLED, 0) == 1,
             liquidVivo = readLiquidVivo(application),
-            kyantGlass = KyantGlass.DEFAULTS.keys.mapNotNull { key ->
+            kyantGlass = (KyantGlass.DEFAULTS.keys + KyantGlass.ZONE_SETTING_KEYS).mapNotNull { key ->
+                runCatching { Settings.Global.getInt(application.contentResolver, key) }.getOrNull()?.let { key to it }
+            }.toMap(),
+            nowBar = NowBar.DEFAULTS.keys.mapNotNull { key ->
                 runCatching { Settings.Global.getInt(application.contentResolver, key) }.getOrNull()?.let { key to it }
             }.toMap(),
             popOutDepth = Settings.Global.getString(application.contentResolver, PopOutButtonsHook.SETTING_DEPTH)?.toFloatOrNull() ?: PopOutButtonsHook.DEFAULT_DEPTH,
@@ -234,11 +278,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             liveUpdatesInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_ENABLED, 0) == 1,
             allProgressInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_ALL_PROGRESS, 0) == 1,
             flashlightInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_FLASHLIGHT, 0) == 1,
-            gboardBlurBackground = Settings.Global.getInt(application.contentResolver, GboardBlurHook.SETTING_ENABLED, 0) == 1,
+            callsInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_CALLS, 0) == 1,
+            otpInOriginIsland = Settings.Global.getInt(application.contentResolver, OriginIslandLiveUpdatesHook.SETTING_OTP, 0) == 1,
             appThemeMode = preferences.getInt("app_theme_mode", 1),
             monetColors = preferences.getBoolean("monet_colors", false),
             uiScale = preferences.getFloat("ui_scale", 100f),
             liquidGlassBar = preferences.getBoolean("liquid_glass_bar", true),
+            legacyIconPackMenu = preferences.getBoolean("legacy_icon_pack_menu", false),
             autoHideBar = preferences.getBoolean("auto_hide_bar", true),
             showIntro = !preferences.getBoolean("intro_seen", false)
         )
@@ -592,6 +638,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) { installer.setCircleToSearch(enabled) }
             if (result.success) mutableState.value = mutableState.value.copy(circleToSearch = enabled)
+        }
+    }
+
+    fun setIosBanners(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setGlobalFlag(IosMotionHook.KEY_BANNER, enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(iosBanners = enabled)
+        }
+    }
+
+    fun setIosIconsMenu(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setGlobalFlag(IosIconStyles.KEY_ENABLED, enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(iosIconsMenu = enabled)
+        }
+    }
+
+    fun setHideHomePill(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setHideHomePill(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(hideHomePill = enabled)
         }
     }
 
@@ -1101,6 +1168,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** A zone's own value of a look setting; the shared value until the zone sets its own. */
+    fun kyantGlassZone(zone: KyantGlass.Zone, key: String): Int =
+        mutableState.value.kyantGlass[KyantGlass.zoneKey(zone, key)] ?: kyantGlass(key)
+
+    fun setKyantGlassZone(zone: KyantGlass.Zone, key: String, value: Int) = setKyantGlass(KyantGlass.zoneKey(zone, key), value)
+
+    fun kyantGlassZoneCustom(zone: KyantGlass.Zone): Boolean = kyantGlass(KyantGlass.zoneCustomKey(zone)) == 1
+
+    /** Turning a zone's own look on starts it from the shared look, so nothing jumps. */
+    fun setKyantGlassZoneCustom(zone: KyantGlass.Zone, enabled: Boolean) {
+        if (enabled) KyantGlass.ZONE_KEYS.forEach { key ->
+            if (mutableState.value.kyantGlass[KyantGlass.zoneKey(zone, key)] == null) setKyantGlassZone(zone, key, kyantGlass(key))
+        }
+        setKyantGlass(KyantGlass.zoneCustomKey(zone), if (enabled) 1 else 0)
+    }
+
+    /** Copies the shared look into the zone again. */
+    fun resetKyantGlassZone(zone: KyantGlass.Zone) {
+        KyantGlass.ZONE_KEYS.forEach { key -> setKyantGlassZone(zone, key, kyantGlass(key)) }
+    }
+
+    fun nowBar(key: String): Int = mutableState.value.nowBar[key] ?: NowBar.DEFAULTS[key] ?: 0
+
+    /** One switch for the whole Now Bar: both capsules and folding into them. */
+    fun setNowBarEnabled(enabled: Boolean) {
+        val v = if (enabled) 1 else 0
+        listOf(NowBar.KEY_ENABLED, NowBar.KEY_MUSIC, NowBar.KEY_STATUS, NowBar.KEY_SINK).forEach { setNowBar(it, v) }
+    }
+
+    /** Now Bar settings are read live by SystemUI, no restart. */
+    fun setNowBar(key: String, value: Int) {
+        mutableState.value = mutableState.value.copy(nowBar = mutableState.value.nowBar + (key to value))
+        liquidGlassSettingJobs.remove(key)?.cancel()
+        liquidGlassSettingJobs[key] = viewModelScope.launch {
+            delay(60)
+            withContext(Dispatchers.IO) { installer.setLiquidVivoParameter(key, value) }
+            liquidGlassSettingJobs.remove(key)
+        }
+    }
+
     /** Applies Kyant's "Clear" button look; switches and the shade blur stay as they are. */
     fun resetKyantGlassLook() {
         KyantGlass.CLEAR_PRESET.forEach { (k, v) -> setKyantGlass(k, v) }
@@ -1118,7 +1225,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         json.put("format", glassExportTag)
         json.put("version", 1)
         val values = org.json.JSONObject()
-        KyantGlass.LOOK_KEYS.sorted().forEach { key -> values.put(key.removePrefix(KyantGlass.PREFIX), kyantGlass(key)) }
+        KyantGlass.LOOK_KEYS.sorted().forEach { key ->
+            // Zone overrides that were never set stay out (they follow the shared look).
+            val value = mutableState.value.kyantGlass[key] ?: KyantGlass.DEFAULTS[key] ?: return@forEach
+            values.put(key.removePrefix(KyantGlass.PREFIX), value)
+        }
         json.put("values", values)
         val clipboard = getApplication<Application>().getSystemService(android.content.ClipboardManager::class.java)
         clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Liquid Glass", json.toString()))
@@ -1229,6 +1340,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setFreestyleControlCenter(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setFreestyleControlCenter(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(freestyleControlCenter = enabled)
+        }
+    }
+
+    fun setIos26ControlCenter(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setIos26ControlCenter(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(ios26ControlCenter = enabled)
+        }
+    }
+
+    fun resetFreestyleLayout() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.resetFreestyleLayout() }
+            mutableState.value = mutableState.value.copy(
+                status = if (result.success) "Control center layout reset" else "Unable to reset the layout",
+                success = result.success
+            )
+        }
+    }
+
+    fun setIosLockscreen(enabled: Boolean) {
+        viewModelScope.launch {
+            mutableState.value = mutableState.value.copy(applying = true, status = "Applying Keep notifications on lockscreen…", success = null)
+            val result = withContext(Dispatchers.IO) { installer.setIosLockscreen(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(iosLockscreen = enabled)
+            mutableState.value = mutableState.value.copy(
+                applying = false,
+                status = if (result.success) "Keep notifications on lockscreen applied" else "Unable to apply Keep notifications on lockscreen",
+                success = result.success
+            )
+        }
+    }
+
     fun setLockscreenQuickToolGlass(enabled: Boolean) {
         viewModelScope.launch {
             mutableState.value = mutableState.value.copy(applying = true, status = "Applying lockscreen glass shortcuts…", success = null)
@@ -1276,6 +1424,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setCallsInOriginIsland(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setCallsInOriginIsland(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(callsInOriginIsland = enabled)
+        }
+    }
+
+    fun setOtpInOriginIsland(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { installer.setOtpInOriginIsland(enabled) }
+            if (result.success) mutableState.value = mutableState.value.copy(otpInOriginIsland = enabled)
+        }
+    }
+
     fun setFlashlightInOriginIsland(enabled: Boolean) {
         viewModelScope.launch {
             mutableState.value = mutableState.value.copy(applying = true, status = "Applying flashlight island control…", success = null)
@@ -1284,19 +1446,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             mutableState.value = mutableState.value.copy(
                 applying = false,
                 status = if (result.success) "Flashlight island control applied" else "Unable to apply flashlight island control",
-                success = result.success
-            )
-        }
-    }
-
-    fun setGboardBlurBackground(enabled: Boolean) {
-        viewModelScope.launch {
-            mutableState.value = mutableState.value.copy(applying = true, status = "Applying Gboard blur…", success = null)
-            val result = withContext(Dispatchers.IO) { installer.setGboardBlurBackground(enabled) }
-            if (result.success) mutableState.value = mutableState.value.copy(gboardBlurBackground = enabled)
-            mutableState.value = mutableState.value.copy(
-                applying = false,
-                status = if (result.success) "Gboard blur applied" else "Unable to apply Gboard blur",
                 success = result.success
             )
         }
@@ -1323,6 +1472,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val scale = value.coerceIn(80f, 125f)
         preferences.edit().putFloat("ui_scale", scale).apply()
         mutableState.value = mutableState.value.copy(uiScale = scale)
+    }
+
+    fun setLegacyIconPackMenu(enabled: Boolean) {
+        preferences.edit().putBoolean("legacy_icon_pack_menu", enabled).apply()
+        mutableState.value = mutableState.value.copy(legacyIconPackMenu = enabled)
     }
 
     fun setLiquidGlassBar(enabled: Boolean) {
@@ -1455,6 +1609,164 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun paletteColor(hue: Float): Int = Color.HSVToColor(floatArrayOf(hue, 0.92f, 1f))
+
+    init {
+        getApplication<Application>().getSharedPreferences(OtaStore.PREFERENCES, 0)
+            .registerOnSharedPreferenceChangeListener(otaHistoryListener)
+    }
+
+    override fun onCleared() {
+        getApplication<Application>().getSharedPreferences(OtaStore.PREFERENCES, 0)
+            .unregisterOnSharedPreferenceChangeListener(otaHistoryListener)
+    }
+
+    private fun updateOta(block: OtaState.() -> OtaState) {
+        mutableState.value = mutableState.value.copy(ota = mutableState.value.ota.block())
+    }
+
+    fun loadOta() {
+        val application = getApplication<Application>()
+        viewModelScope.launch {
+            otaProps = withContext(Dispatchers.IO) { otaTools.readProps() }
+            val resolver = application.contentResolver
+            val spoofFrom = Settings.Global.getString(resolver, OtaUpdaterHook.SETTING_SPOOF_FROM)?.takeIf { it.isNotBlank() }
+            val spoofTo = Settings.Global.getString(resolver, OtaUpdaterHook.SETTING_SPOOF_TO)?.takeIf { it.isNotBlank() }
+            val captures = OtaStore.load(application)
+            val version = OtaVersion.displayVersion(otaProps).let { shown ->
+                // Without resetprop only the updater sees the fake, show what it sees.
+                if (spoofFrom != null && spoofTo != null) shown.replace(spoofFrom, spoofTo) else shown
+            }
+            val number = OtaVersion.numberIn(version).orEmpty()
+            val target = mutableState.value.ota.target.ifBlank {
+                captures.firstNotNullOfOrNull { it.versionNumber }?.takeIf { it != number }.orEmpty()
+            }
+            updateOta {
+                copy(
+                    loaded = true,
+                    captureEnabled = Settings.Global.getInt(resolver, OtaUpdaterHook.SETTING_CAPTURE, 1) == 1,
+                    updaterInstalled = otaTools.updaterInstalled(),
+                    updaterDisabled = otaTools.updaterDisabled(),
+                    version = version,
+                    versionNumber = number,
+                    spoofFrom = spoofFrom,
+                    spoofTo = spoofTo,
+                    target = target,
+                    preview = otaPreview(number, target),
+                    captures = captures,
+                    info = buildList {
+                        add("Firmware" to version)
+                        if (spoofFrom != null) add("Real firmware" to version.replace(spoofTo ?: spoofFrom, spoofFrom))
+                        otaProps["ro.vivo.os.build.display.id"]?.let { add("OS" to it) }
+                        otaProps["ro.build.version.release"]?.let { add("Android" to it) }
+                        otaProps["ro.build.version.security_patch"]?.let { add("Security patch" to it) }
+                        otaProps["ro.boot.slot_suffix"]?.takeIf { it.isNotBlank() }?.let { add("Active slot" to it.removePrefix("_").uppercase()) }
+                    }
+                )
+            }
+        }
+    }
+
+    private fun otaPreview(from: String, to: String): List<OtaPropChange> =
+        if (OtaVersion.isValidNumber(to)) OtaVersion.changes(otaProps, from, to) else emptyList()
+
+    fun setOtaTarget(text: String) {
+        val target = text.filter { it.isDigit() || it == '.' }.take(24)
+        updateOta { copy(target = target, preview = otaPreview(versionNumber, target)) }
+    }
+
+    /** "Fake update" on a captured package: pretend that version is already installed. */
+    fun fakeUpdateTo(capture: OtaCapture) {
+        val number = capture.versionNumber ?: return
+        setOtaTarget(number)
+        applyOtaSpoof()
+    }
+
+    fun applyOtaSpoof() {
+        val to = mutableState.value.ota.target
+        if (!OtaVersion.isValidNumber(to)) {
+            otaToast("Enter a version like 16.1.12.0")
+            return
+        }
+        viewModelScope.launch {
+            updateOta { copy(busy = true) }
+            val result = withContext(Dispatchers.IO) {
+                // A second fake starts from the real firmware, not from the previous fake.
+                if (otaTools.spoofActive()) {
+                    otaTools.restoreSpoof()
+                    otaProps = otaTools.readProps()
+                }
+                val from = OtaVersion.numberIn(OtaVersion.displayVersion(otaProps))
+                if (from == null || from == to) return@withContext null
+                otaTools.applySpoof(OtaVersion.changes(otaProps, from, to), from, to)
+            }
+            val updaterOnly = result?.message?.contains("updater-only") == true
+            otaToast(
+                when {
+                    result == null -> "This version is already installed"
+                    !result.success -> "Unable to apply fake update"
+                    updaterOnly -> "resetprop not found: only the updater sees the new version"
+                    else -> "Fake update applied"
+                }
+            )
+            updateOta { copy(busy = false, target = "") }
+            loadOta()
+        }
+    }
+
+    fun restoreOtaSpoof() {
+        viewModelScope.launch {
+            updateOta { copy(busy = true) }
+            val result = withContext(Dispatchers.IO) { otaTools.restoreSpoof() }
+            otaToast(if (result.success) "Real version restored" else "Unable to restore version")
+            updateOta { copy(busy = false) }
+            loadOta()
+        }
+    }
+
+    fun setOtaCapture(enabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { otaTools.setCapture(enabled) }
+            if (result.success) updateOta { copy(captureEnabled = enabled) }
+        }
+    }
+
+    fun setUpdaterDisabled(disabled: Boolean) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { otaTools.setUpdaterDisabled(disabled) }
+            if (result.success) updateOta { copy(updaterDisabled = disabled) }
+        }
+    }
+
+    fun clearUpdaterData() {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) { otaTools.clearUpdaterData() }
+            otaToast(if (result.success) "Updater data cleared" else "Unable to clear updater data")
+        }
+    }
+
+    fun openUpdater() {
+        viewModelScope.launch(Dispatchers.IO) { otaTools.openUpdater() }
+    }
+
+    fun rebootTo(target: String) {
+        viewModelScope.launch(Dispatchers.IO) { otaTools.reboot(target) }
+    }
+
+    fun downloadOta(capture: OtaCapture) {
+        val started = OtaActions.download(getApplication(), capture)
+        otaToast(if (started) "Download started" else "Unable to start download")
+    }
+
+    fun copyOta(capture: OtaCapture) {
+        OtaActions.copy(getApplication(), capture)
+        otaToast("Link copied")
+    }
+
+    fun clearOtaHistory() = OtaStore.clear(getApplication())
+
+    private fun otaToast(message: String) {
+        Toast.makeText(getApplication(), tr(message), Toast.LENGTH_SHORT).show()
+    }
 
 }
 

@@ -206,6 +206,19 @@ fun OriginSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    if (LocalLiquidControls.current) {
+        val haptics = LocalView.current
+        LiquidToggle(
+            checked = checked,
+            onCheckedChange = {
+                haptics.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+                onCheckedChange(it)
+            },
+            modifier = modifier,
+            enabled = enabled
+        )
+        return
+    }
     val view = LocalView.current
     val accent = OriginAccent.toArgb()
     val container = OriginAccentContainer.toArgb()

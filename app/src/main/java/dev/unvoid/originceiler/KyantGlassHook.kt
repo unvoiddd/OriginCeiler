@@ -93,7 +93,9 @@ object KyantGlassHook {
         val material = object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val view = param.thisObject as? View ?: return
-                if (!KyantGlass.config.on(KyantGlass.KEY_FOLDERS) || !insideGlassWidget(view)) return
+                // Only the plate and the views holding it: the clock / weather text switches to a
+                // material of its own while pages scroll, and blocking that left it blank.
+                if (!KyantGlass.config.on(KyantGlass.KEY_FOLDERS) || !materialBlocked.containsKey(view)) return
                 param.result = when ((param.method as? java.lang.reflect.Method)?.returnType) {
                     java.lang.Boolean.TYPE -> false
                     Integer.TYPE -> 0
@@ -105,6 +107,23 @@ object KyantGlassHook {
         View::class.java.declaredMethods
             .filter { it.name.startsWith("setMaterial") && !java.lang.reflect.Modifier.isStatic(it.modifiers) }
             .forEach { runCatching { XposedBridge.hookMethod(it, material) } }
+        // Widget text and glyphs switch to vivo's vibrancy (drawn through the material underlay)
+        // while pages scroll; over the glass that underlay is gone and the text went blank.
+        // Inside glass widgets they keep drawing plainly.
+        val vibrancy = object : XC_MethodHook() {
+            override fun beforeHookedMethod(param: MethodHookParam) {
+                val view = param.thisObject as? View ?: return
+                // Leaf views only (text, glyphs): containers keep the widget's own shape and plate.
+                if (view is android.view.ViewGroup) return
+                if (!KyantGlass.config.on(KyantGlass.KEY_FOLDERS) || !insideGlassWidget(view)) return
+                // Dropped (style 0 would be a dark plate of its own); plainWidgetText clears the
+                // effect set at bind time.
+                param.result = if ((param.method as? java.lang.reflect.Method)?.returnType == java.lang.Boolean.TYPE) false else null
+            }
+        }
+        View::class.java.declaredMethods
+            .filter { it.name == "setVibrancyEffect" && !java.lang.reflect.Modifier.isStatic(it.modifiers) }
+            .forEach { runCatching { XposedBridge.hookMethod(it, vibrancy) } }
         // RemoteViews re-set the plate's background later (theme / night mode): keep the glass.
         XposedBridge.hookAllMethods(View::class.java, "setBackgroundDrawable", object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
@@ -132,10 +151,27 @@ object KyantGlassHook {
     }
 
     /** The plate and the views between it and the host: none keeps a vivo material. */
+    private val materialBlocked = Collections.synchronizedMap(WeakHashMap<View, Boolean>())
+
+    private val clearVibrancy by lazy {
+        runCatching { View::class.java.getMethod("clearVibrancyEffect").apply { isAccessible = true } }.getOrNull()
+    }
+
+    /** Clears vivo's vibrancy text in a glass widget (the hook keeps it off afterwards). */
+    private fun plainWidgetText(view: View) {
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) plainWidgetText(view.getChildAt(i))
+            return
+        }
+        runCatching { clearVibrancy?.invoke(view) }
+        view.invalidate()
+    }
+
     private fun clearWidgetMaterials(plate: View, host: View) {
         var v: View? = plate
         var depth = 0
         while (v != null && v !== host && depth < 8) {
+            materialBlocked[v] = true
             clearNativeMaterial(v)
             v = v.parent as? View
             depth++
@@ -162,7 +198,10 @@ object KyantGlassHook {
         KyantGlass.track(plate)
         val on = KyantGlass.config.on(KyantGlass.KEY_FOLDERS)
         glassWidgetHosts[host] = true
-        if (on) clearWidgetMaterials(plate, host)
+        if (on) {
+            clearWidgetMaterials(plate, host)
+            plainWidgetText(host)
+        }
         applyWidgetGlass(plate, glass, on)
     }
 
@@ -735,20 +774,6 @@ object KyantGlassHook {
                 true
             }
         }
-        // Every geometry change / redraw of the background redraws its row in the same frame:
-        // the rim lives in the row and would otherwise lag a frame behind (flicker while
-        // notifications expand / collapse).
-        val follow = object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val view = param.thisObject as? View ?: return
-                val row = notificationRowOf(view) ?: return
-                if (row in notificationRims) row.invalidate()
-            }
-        }
-        for (name in arrayOf("invalidate", "setActualHeight", "setActualWidth", "setClipTopAmount", "setClipBottomAmount",
-            "setRadius", "updateBackgroundRadii", "setDrawInBounds", "setExpandAnimationRunning", "setParentTranslationX", "setTranslationX")) {
-            runCatching { XposedBridge.hookAllMethods(cls, name, follow) }
-        }
         XposedBridge.hookAllMethods(cls, "onDraw", object : XC_MethodHook() {
             override fun beforeHookedMethod(param: MethodHookParam) {
                 val view = param.thisObject as? View ?: return
@@ -776,14 +801,14 @@ object KyantGlassHook {
                 // xfermode for its own blur: glass drawn into that layer comes out black.
                 dropNotificationLayer(view)
                 dropVivoEffect(view)
-                val renderer = notificationRenderers.getOrPut(view) { KyantGlass.Renderer() }
-                // The rim and the finger light go on top of the whole row (NotificationRim): drawn
-                // here they sit under the notification's content, which hides them.
-                renderer.draw(canvas, view, rect, radii, backdrop, dim = true, highlight = false, withTouchGlow = false,
+                val renderer = notificationRenderers.getOrPut(view) { KyantGlass.Renderer(KyantGlass.Zone.NOTIFICATIONS) }
+                // Glass, rim highlight and finger light are one surface, drawn together in the card's
+                // own draw: whatever vivo does to the card (expand / collapse, stacks, clip amounts)
+                // redraws the rim with it, in the same frame and the same geometry.
+                renderer.draw(canvas, view, rect, radii, backdrop, dim = true,
                     // The row clips its outline a little inside the background: keep the rim visible.
-                    rimInset = 1.5f * view.resources.displayMetrics.density)
+                    rimInset = 1f * view.resources.displayMetrics.density, strokeRim = true)
                 KyantGlassTouch.registerHost(view, ::notificationRowOf)
-                notificationRowOf(view)?.let { row -> attachRim(row, view) }
 
                 param.result = null
             }
@@ -818,74 +843,6 @@ object KyantGlassHook {
 
     /** Background → its visible card rect and corner radii (false: nothing visible). */
     private var bgGeometry: ((View, RectF, FloatArray) -> Boolean)? = null
-
-    /**
-     * Rim highlight + finger light of a notification, drawn after the row's children so they lie
-     * over the content like on every other glass surface. Geometry is read from the background
-     * at draw time, never from an earlier frame.
-     */
-    private class NotificationRim(row: View) {
-        private val rowRef = java.lang.ref.WeakReference(row)
-        private val renderer = KyantGlass.Renderer()
-        private val rect = RectF()
-        private val radii = FloatArray(4)
-        private val drawRect = RectF()
-        var background: java.lang.ref.WeakReference<View>? = null
-
-        fun draw(canvas: Canvas) {
-            val row = rowRef.get() ?: return
-            val bg = background?.get() ?: return
-            if (!KyantGlass.config.on(KyantGlass.KEY_NOTIFICATIONS) || bg.visibility != View.VISIBLE || bg.parent == null) return
-            if (bgGeometry?.invoke(bg, rect, radii) != true || rect.isEmpty) return
-            // Background coordinates → row coordinates.
-            var dx = 0f
-            var dy = 0f
-            var v: View? = bg
-            while (v != null && v !== row) {
-                dx += v.left + v.translationX
-                dy += v.top + v.translationY
-                v = v.parent as? View
-            }
-            if (v == null) return
-            drawRect.set(rect)
-            drawRect.offset(dx, dy)
-            renderer.drawRimOnly(canvas, row, drawRect, radii, edgeGlow = false)
-        }
-    }
-
-    private val notificationRims = Collections.synchronizedMap(WeakHashMap<View, NotificationRim>())
-    private val rowDrawHooked = AtomicBoolean(false)
-
-    /**
-     * Rows have no background, so Android records them through dispatchDraw directly (View.draw
-     * and the overlay are skipped): the rim goes on after ViewGroup.dispatchDraw of the row.
-     */
-    private fun hookRowDispatchDraw() {
-        if (!rowDrawHooked.compareAndSet(false, true)) return
-        XposedBridge.hookAllMethods(android.view.ViewGroup::class.java, "dispatchDraw", object : XC_MethodHook() {
-            override fun afterHookedMethod(param: MethodHookParam) {
-                val rim = notificationRims[param.thisObject as? View ?: return] ?: return
-                val canvas = param.args.firstOrNull() as? Canvas ?: return
-                runCatching { rim.draw(canvas) }
-            }
-        })
-    }
-
-    private fun attachRim(row: View, background: View) {
-        var created = false
-        val rim = notificationRims.getOrPut(row) {
-            hookRowDispatchDraw()
-            KyantGlass.track(row)
-            created = true
-            NotificationRim(row)
-        }
-        if (rim.background?.get() !== background) {
-            rim.background = java.lang.ref.WeakReference(background)
-            created = true
-        }
-        // A new rim is not in the row's recorded display list yet.
-        if (created) row.postInvalidateOnAnimation()
-    }
 
     /** The whole notification (content and glass) stretches, not just its background. */
     private fun notificationRowOf(background: View): View? =
@@ -1700,6 +1657,8 @@ object KyantGlassHook {
     }
 
     private fun helperRadius(helper: Any, view: View, w: Float, h: Float): Float {
+        // Freestyle control center: a tile stretched to 2x1 / 2x2 is a capsule / rounded square.
+        FreestyleControlCenter.glassRadius(view, w, h)?.let { return it }
         val half = minOf(w, h) / 2f
         val circle = runCatching { findField(helper.javaClass, "mIsCircle")?.getBoolean(helper) }.getOrNull() ?: false
         if (circle) return half
@@ -1727,6 +1686,7 @@ object KyantGlassHook {
         private const val FOCUS_SETTLE_MS = 600L
         private val LAUNCHER_MAX_AGE_MS: Long get() = KyantGlass.config[KyantGlass.KEY_HOME_REFRESH_MS].coerceIn(200, 5000).toLong()
         private const val MAX_FAILURES = 3
+        private const val LIGHT_REDRAW_WINDOW_MS = 100L
         /** Capture resolution: low is plenty under blur, higher keeps a thin lens sharp. */
         private val SCALE: Float get() = KyantGlass.config[KyantGlass.KEY_CAPTURE_SCALE].coerceIn(15, 100) / 100f
         @Volatile private var listening = false
@@ -1778,7 +1738,10 @@ object KyantGlassHook {
             }
             // Launcher (live wallpaper keeps moving): refresh more often than under the shade.
             val maxAge = if (requireFocus) LAUNCHER_MAX_AGE_MS else MAX_AGE_MS
-            if (!inFlight) {
+            // Redraws that only move the tilt light (or a pending retry) keep the frame they have:
+            // a periodic refresh from them turned holding the phone into nonstop screen captures.
+            val lightOnly = now - KyantGlassLight.lightRedrawAt < LIGHT_REDRAW_WINDOW_MS
+            if (!inFlight && (stale || !lightOnly)) {
                 val still = now - KyantGlass.lastMotionAt > STILL_MS
                 when {
                     stale && age > RETRY_MS -> request(view, surface, requireFocus)
@@ -1843,7 +1806,9 @@ object KyantGlassHook {
             val requestedAt = android.os.SystemClock.uptimeMillis()
             // The glass blur, in capture pixels, applied once here on the worker.
             val scale = SCALE
-            val blurRadius = KyantGlass.blurPx(KyantGlass.config, view.resources.displayMetrics.density, matchShade = !requireFocus) * scale
+            // Pre-blurred with the lightest blur any zone uses; heavier zones add the rest per surface.
+            val blurScreen = KyantGlass.minBlurPx(view.resources.displayMetrics.density)
+            val blurRadius = blurScreen * scale
             worker.execute {
                 try {
                     val raw = capture(surface, scale)
@@ -1852,7 +1817,7 @@ object KyantGlassHook {
                             val soft = raw.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
                             KyantGlass.blurSoftware(soft, blurRadius).also {
                                 soft.recycle()
-                                KyantGlass.markPreBlurred(it)
+                                KyantGlass.markPreBlurred(it, blurScreen)
                             }
                         }.getOrDefault(raw)
                     } else raw

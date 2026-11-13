@@ -87,6 +87,17 @@ object ClockGlass {
             view.getLocationOnScreen(loc)
             matrix.postScale(dm.widthPixels.coerceAtLeast(1) / blurred.width.toFloat(), dm.heightPixels.coerceAtLeast(1) / blurred.height.toFloat())
             matrix.postTranslate(-loc[0].toFloat(), -loc[1].toFloat())
+            // A scaled clock (the iOS lockscreen shrinks it under notifications): screen pixels
+            // map back into the view's own, unscaled coordinates.
+            var sx = 1f
+            var sy = 1f
+            var v: View? = view
+            while (v != null) {
+                sx *= v.scaleX
+                sy *= v.scaleY
+                v = v.parent as? View
+            }
+            if (sx > 0.01f && sy > 0.01f && (sx != 1f || sy != 1f)) matrix.postScale(1f / sx, 1f / sy)
             bitmapShader.setLocalMatrix(matrix)
             shader.setInputShader("backdrop", bitmapShader)
             shader.setFloatUniform("hasBackdrop", 1f)

@@ -435,7 +435,7 @@ internal fun ParticleHero() {
         ) {
             Text("OriginCeiler", color = OriginTextPrimary, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
-            Text("OriginOS customization module", color = OriginTextSecondary, fontSize = 14.sp)
+            Text("OriginOS 6 customization module", color = OriginTextSecondary, fontSize = 14.sp)
         }
     }
 }

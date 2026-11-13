@@ -42,6 +42,11 @@ An advanced LSPosed customization module for rooted Vivo and iQOO devices runnin
 - **BlueLM Russification**: Full Russian translation for the Vivo Copilot interface.
 - **On-Device Whisper STT**: Integrated offline OpenAI Whisper speech recognition replacing cloud voice recognition for Jovi and Copilot.
 
+### System Update
+- **OTA Link Capture**: Catches the update package link (with version, size and MD5) when the stock updater finds an update, and offers it in a notification and in the app to download or copy.
+- **Fake Update**: Reports a newer firmware number to the updater and the system, so the updater offers the update after it. Rewrites every system property holding the firmware number with resetprop and keeps it across reboots; the real version can be restored at any time.
+- **Updater Controls**: Disable the stock updater, clear its data, and reboot to recovery, bootloader or soft reboot.
+
 ### System Utilities
 - **Package Installer Bypass**: Removes forced system installer restrictions for third-party APK installations.
 - **Private DNS Controls**: Enhanced network configuration options.
@@ -74,6 +79,7 @@ Enable the module for the following packages in LSPosed:
 - `com.iqoo.powersaving`
 - `com.vivo.gamecube`
 - `com.vivo.pay`
+- `com.bbk.updater` (OTA link capture and fake update)
 
 ---
 

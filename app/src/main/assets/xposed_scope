@@ -1,7 +1,6 @@
 com.android.systemui
 com.bbk.launcher2
 com.google.android.googlequicksearchbox
-com.google.android.inputmethod.latin
 com.vivo.launchercopilot
 com.vivo.ai.copilot
 com.vivo.ai.base.copilot
@@ -23,3 +22,4 @@ com.vivo.faceui
 com.vivo.card
 com.vivo.permissionmanager
 com.android.permissioncontroller
+com.bbk.updater

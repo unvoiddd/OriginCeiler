@@ -78,6 +78,16 @@
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".OtaCaptureReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.unvoid.originceiler.OTA_FOUND" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".OtaActionReceiver"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"
@@ -87,9 +97,5 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/apk_paths" />
         </provider>
-        <provider
-            android:name=".GboardBackgroundProvider"
-            android:authorities="dev.unvoid.originceiler.gboardblur"
-            android:exported="true" />
     </application>
 </manifest>

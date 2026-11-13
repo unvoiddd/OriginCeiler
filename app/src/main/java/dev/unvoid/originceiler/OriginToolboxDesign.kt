@@ -236,11 +236,11 @@ private val appScopes = listOf(
     AppScope("android", "Android System", "Private DNS and VPN behavior", "android"),
     AppScope("launcher", "BBK Launcher", "Icon packs, themes and home screen", "com.bbk.launcher2"),
     AppScope("google", "Google", "Gemini access and assistant behavior", "com.google.android.googlequicksearchbox"),
-    // AppScope("gboard", "Gboard", "Keyboard background and frosted blur", "com.google.android.inputmethod.latin"),
     AppScope("bluelm", "BlueLM", "Power button assistant and VIS Trigger", "com.vivo.ai.copilot"),
     AppScope("player", "Origin Player", "Media-session package policies", "com.vivo.musicwidgetmix"),
     AppScope("installer", "Package Installer", "System installer and third-party handoff", "com.android.packageinstaller"),
-    AppScope("island", "Origin Island", "Live Updates and flashlight controls", "com.vivo.systemuiplugin")
+    AppScope("island", "Origin Island", "Live Updates and flashlight controls", "com.vivo.systemuiplugin"),
+    AppScope("updater", "System Update", "OTA package links, fake update and reboot options", OtaRootTools.UPDATER)
 )
 
 private data class MainTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
@@ -429,6 +429,10 @@ internal fun OriginSlider(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    if (LocalLiquidControls.current) {
+        LiquidSlider(value, onValueChange, valueRange, modifier, enabled)
+        return
+    }
     val accent = OriginAccent
     val inactiveTrack = OriginFillGray
     val thumbFill = OriginBgDark
@@ -591,6 +595,20 @@ internal fun ValueSlider(
     }
 }
 
+/** How to open the iOS 26 style icon sheet on the home screen (it lives in the launcher). */
+@Composable
+private fun IosIconsMenuInfo(enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Toggle("Default, Dark, Clear and Tinted icons", "The Icons menu on the home screen and the looks it applies", enabled, onChange)
+        if (enabled) Text(
+            "Press and hold an empty spot on the home screen, then tap Icons in the bottom bar (it replaces Interaction Cube). Pick a look, its colour, Light / Dark / Auto, and small or large icons; changes apply instantly.",
+            color = OriginTextSecondary,
+            fontSize = 12.5.sp,
+            modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 14.dp)
+        )
+    }
+}
+
 @Composable
 internal fun Toggle(
     title: String,
@@ -652,6 +670,7 @@ internal fun OriginToolboxNavigation(state: UiState, model: MainViewModel) {
     val settingsListState = rememberLazyListState()
     val navigationBackdrop = rememberLayerBackdrop()
 
+    CompositionLocalProvider(LocalLiquidControls provides (model.kyantGlass(KyantGlass.KEY_CONTROLS) == 1)) {
     Box(Modifier.fillMaxSize().background(OriginBgDark)) {
         AnimatedContent(
             targetState = selectedScope,
@@ -712,6 +731,7 @@ internal fun OriginToolboxNavigation(state: UiState, model: MainViewModel) {
                 )
             }
         }
+    }
     }
 }
 
@@ -1364,7 +1384,8 @@ private fun SettingsScreen(state: UiState, listState: LazyListState, model: Main
                     },
                     { Toggle("System colors", "Use Android Monet colors throughout the application", state.monetColors, model::setMonetColors) },
                     { ValueSlider("Interface scale", state.uiScale, 80f..125f, "%", model::setUiScale) },
-                    { Toggle("Liquid Glass navigation", "Refraction and transparency for the navigation panel", state.liquidGlassBar, model::setLiquidGlassBar) }
+                    { Toggle("Liquid Glass navigation", "Refraction and transparency for the navigation panel", state.liquidGlassBar, model::setLiquidGlassBar) },
+                    { Toggle("Show the old icon pack menu in home screen tweaks", "The classic icon pack picker under BBK Launcher", state.legacyIconPackMenu, model::setLegacyIconPackMenu) }
                 )
             )
         }
@@ -1530,6 +1551,7 @@ private fun SubSectionHeaderWithAction(
 
 @Composable
 private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, onBack: () -> Unit) {
+    var glassTab by rememberSaveable { mutableStateOf(0) }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
         Box(
             modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 6.dp),
@@ -1570,14 +1592,13 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                 )
             }
             when (scope.id) {
-                "glass" -> glassScope(state, model)
+                "glass" -> glassScope(state, model, glassTab) { glassTab = it }
                 "system_ui" -> {
                     item {
                         SettingsGroup("Status bar", rows = listOf(
                             { Toggle("Extended statusbar", "Use extended status indicators", state.materialOriginOsStatusBar, model::setMaterialOriginOsStatusBar) },
                             { Toggle("Google Sans Flex Rounded", "Rounded font for the clock, shade date and battery percentage", state.materialOriginOsGoogleSansFlex, model::setMaterialOriginOsGoogleSansFlex) },
-                            { Toggle("Custom statusbar", "Independent SystemUI icon customisation", state.aospStatusbar, model::setExtendedStatusbar) },
-                            { Toggle("Hide Vivo service error", "Hide notifications from the Vivo daemon service", state.hideVivoServiceError, model::setHideVivoServiceError) }
+                            { Toggle("Custom statusbar", "Independent SystemUI icon customisation", state.aospStatusbar, model::setExtendedStatusbar) }
                         ))
                     }
                     if (state.aospStatusbar) {
@@ -1626,6 +1647,11 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                             { GroupActionRow("Reset to default", model::resetStatusBarTweakDefaults) }
                         ))
                     }
+                    item {
+                        SettingsGroup("Other", rows = listOf(
+                            { Toggle("Hide Vivo service error", "Hide notifications from the Vivo daemon service", state.hideVivoServiceError, model::setHideVivoServiceError) }
+                        ))
+                    }
                 }
                 "system_ui_plugin" -> {
                     item {
@@ -1634,61 +1660,23 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                         ))
                     }
                     item {
-                        SettingsGroup("Lockscreen", rows = listOf(
-                            { Toggle("Custom lockscreen clock", "Clock styles adapted from OpenAlive", state.customLockscreenClock, model::setCustomLockscreenClock) }
+                        SettingsGroup("Keep notifications on lockscreen", footer = "vivo normally hides notifications from the lock screen once you have unlocked the phone. With this on, every notification stays on the lock screen until you open it or swipe it away, folded into vivo's own \"N notifications\" bubble (tap it to expand).", rows = listOf(
+                            { Toggle("Keep notifications on lockscreen", "Notifications don't disappear after unlocking, folded into a bubble", state.iosLockscreen, model::setIosLockscreen) }
                         ))
+                    }
+                    item {
+                        SettingsGroup("Lockscreen clock", rows = buildList {
+                            add { Toggle("Custom lockscreen clock", "Clock styles adapted from OpenAlive", state.customLockscreenClock, model::setCustomLockscreenClock) }
+                            if (state.customLockscreenClock) {
+                                add { Toggle("Liquid Glass for clock", "The clock digits wear the glass of the Liquid Glass page", state.customLockscreenClockGlass, model::setCustomLockscreenClockGlass) }
+                            }
+                        })
                     }
                     if (state.customLockscreenClock) {
                         item { CustomLockscreenClockPicker(state, model) }
                         item { CustomLockscreenClockColorPicker(state, model) }
-                        item {
-                            SettingsGroup("Clock glass", rows = buildList {
-                                add { Toggle("Liquid Glass for clock", "The clock digits wear the same glass as everything else (Liquid Glass page settings)", state.customLockscreenClockGlass, model::setCustomLockscreenClockGlass) }
-                            })
-                        }
                     }
-                    item {
-                        SettingsGroup(
-                            "Native blur",
-                            footer = "vivo's own blur, per surface (ported from LiquidVivo). Glass surfaces are on the Liquid Glass page.",
-                            rows = listOf(
-                                { LvToggle(model, LV.KEY_ENABLE, 0, "Blur control", "Blur radius and transparency for notifications, control center, volume, lockscreen, popups and the island") }
-                            )
-                        )
-                    }
-                    if (lvOn(model)) {
-                        item {
-                            SettingsGroup("Notifications & control center", rows = listOf(
-                                { LvSlider(model, LV.radiusKey(LvScene.SHADE), LV.DEFAULT_SCALE, "Blur radius") },
-                                { Toggle("Disable background zoom", "Keep the blurred background at its original scale", state.nativeBlurDisablePanelScale, model::setNativeBlurDisablePanelScale) }
-                            ))
-                        }
-                        item {
-                            SettingsGroup("Lockscreen glass", rows = listOf(
-                                { LvSlider(model, LV.radiusKey(LvScene.KEYGUARD), LV.DEFAULT_SCALE, "Blur radius") }
-                            ))
-                        }
-                        item {
-                            SettingsGroup("System popups", rows = listOf(
-                                { LvSlider(model, LV.alphaKey(LvScene.POPUP), LV.DEFAULT_SCALE, "Opacity") }
-                            ))
-                        }
-                        item {
-                            SettingsGroup("Other surfaces", rows = listOf(
-                                { LvSlider(model, LV.radiusKey(LvScene.OTHER), LV.DEFAULT_SCALE, "Blur radius") },
-                                { LvSlider(model, LV.alphaKey(LvScene.OTHER), LV.DEFAULT_SCALE, "Opacity") },
-                                { GroupActionRow("Reset glass to defaults", model::resetLiquidVivoTuning) }
-                            ))
-                        }
-                    } else {
-                        item {
-                            SettingsGroup("Notifications & control center", rows = listOf(
-                                { Toggle("Disable background zoom", "Keep the blurred background at its original scale", state.nativeBlurDisablePanelScale, model::setNativeBlurDisablePanelScale) }
-                            ))
-                        }
-                    }
-                    item { GroupHeader("Control center icons") }
-                    item { ControlCenterIconPackSelector(state, model) }
+                    nowBarItems(model)
                     item {
                         SettingsGroup("Notification center clock", rows = buildList {
                             add { Toggle("Centered clock", "Large centered Notification Center clock", state.centeredNotificationClock, model::setCenteredNotificationClock) }
@@ -1697,6 +1685,45 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                                 add { ValueSlider("Clock size", state.notificationClockSize, 80f..200f, "%", model::setNotificationClockSize) }
                             }
                         })
+                    }
+                    item {
+                        SettingsGroup(
+                            "Control center",
+                            footer = if (state.freestyleControlCenter) "Tap the pencil in the control center to move, resize, remove and add controls. Works with Liquid Glass." else null,
+                            rows = buildList {
+                                add { Toggle("Freestyle control center", "iOS-style editor: resize tiles and the player, move and add controls", state.freestyleControlCenter, model::setFreestyleControlCenter) }
+                                add { Toggle("iOS 26 control center style", "iOS 26 grid, tile sizes and tile style", state.ios26ControlCenter, model::setIos26ControlCenter) }
+                                if (state.freestyleControlCenter) add { GroupActionRow("Reset layout", model::resetFreestyleLayout) }
+                            }
+                        )
+                    }
+                    item { GroupHeader("Control center icons") }
+                    item { ControlCenterIconPackSelector(state, model) }
+                    item {
+                        SettingsGroup(
+                            "Native blur",
+                            footer = "vivo's own blur, per surface (ported from LiquidVivo). Glass surfaces are on the Liquid Glass page.",
+                            rows = buildList {
+                                add { LvToggle(model, LV.KEY_ENABLE, 0, "Blur control", "Blur radius and transparency for notifications, control center, volume, lockscreen, popups and the island") }
+                                add { Toggle("Disable background zoom", "Keep the blurred background at its original scale", state.nativeBlurDisablePanelScale, model::setNativeBlurDisablePanelScale) }
+                            }
+                        )
+                    }
+                    if (lvOn(model)) {
+                        item {
+                            SettingsGroup("Blur per surface", rows = listOf(
+                                { LvSlider(model, LV.radiusKey(LvScene.SHADE), LV.DEFAULT_SCALE, "Notifications & control center") },
+                                { LvSlider(model, LV.radiusKey(LvScene.KEYGUARD), LV.DEFAULT_SCALE, "Lockscreen") },
+                                { LvSlider(model, LV.radiusKey(LvScene.OTHER), LV.DEFAULT_SCALE, "Other surfaces") }
+                            ))
+                        }
+                        item {
+                            SettingsGroup("Opacity per surface", rows = listOf(
+                                { LvSlider(model, LV.alphaKey(LvScene.POPUP), LV.DEFAULT_SCALE, "System popups") },
+                                { LvSlider(model, LV.alphaKey(LvScene.OTHER), LV.DEFAULT_SCALE, "Other surfaces") },
+                                { GroupActionRow("Reset blur to defaults", model::resetLiquidVivoTuning) }
+                            ))
+                        }
                     }
                 }
                 "settings" -> item {
@@ -1720,8 +1747,14 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                         ))
                     }
                     item {
+                        SettingsGroup("iOS motion", rows = listOf(
+                            { Toggle("iOS notification banners", "Heads-up banners drop in from the top on a soft spring and slide back up when they leave", state.iosBanners, model::setIosBanners) }
+                        ))
+                    }
+                    item {
                         SettingsGroup("Home screen", rows = buildList {
                             add { Toggle("Pixel home layout", "Google Search dock and icon grid", state.pixelHomeLayout, model::setPixelHomeLayout) }
+                            add { Toggle("Hide navigation pill on home", "The gesture pill smoothly fades out while the home screen is showing; swipes still work", state.hideHomePill, model::setHideHomePill) }
                             add { Toggle("Themed icons", "Material You colors for launcher icons", state.nativeAospThemedIcons, model::setNativeAospThemedIcons) }
                             if (state.nativeAospThemedIcons) {
                                 add { ValueSlider("Themed icon size", state.monetIconScale, 65f..118f, "%", model::setMonetIconScale) }
@@ -1729,8 +1762,15 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                             add { ValueSlider("Icon size", state.launcherIconSize, 70f..150f, "%", model::setLauncherIconSize) }
                         })
                     }
+                    item {
+                        SettingsGroup("iOS icons customization menu", rows = listOf(
+                            { IosIconsMenuInfo(state.iosIconsMenu, model::setIosIconsMenu) }
+                        ))
+                    }
                     item { DesktopGridCard(state, model) }
-                    item { Box(Modifier.padding(horizontal = 16.dp)) { IconPackApplyContainer(state, model) } }
+                    if (state.legacyIconPackMenu) {
+                        item { Box(Modifier.padding(horizontal = 16.dp)) { IconPackApplyContainer(state, model) } }
+                    }
                 }
                 "google" -> item {
                     SettingsGroup("Google", rows = listOf(
@@ -1749,6 +1789,7 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                         { Toggle("Allow all media players", "Bypass Vivo media player allowlists", state.allowAllMediaPlayers, model::setAllowAllMediaPlayers) }
                     ))
                 }
+                "updater" -> updaterScope(state, model)
                 "installer" -> item {
                     SettingsGroup("Installer", rows = listOf(
                         { Toggle("Third-party APK installers", "Remove the forced system installer after reboot", state.removePackageInstallerAfterReboot, model::setRemovePackageInstallerAfterReboot) }
@@ -1758,9 +1799,9 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                     item {
                         SettingsGroup(
                             "Island glass",
-                            footer = if (lvOn(model)) "The collapsed capsule turns into glass only while system real-time blur is on and power saving is off." else LV_OFF_FOOTER,
+                            footer = if (lvOn(model)) "The collapsed capsule turns into glass only while system real-time blur is on and power saving is off." else null,
                             rows = if (!lvOn(model)) listOf(
-                                { LvToggle(model, LV.KEY_ENABLE, 0, "Blur & glass control", "Master switch shared with System UI Plugin") }
+                                { LvToggle(model, LV.KEY_ENABLE, 0, "Blur control", "Shared with Native blur in System UI Plugin") }
                             ) else listOf(
                                 { LvToggle(model, LV.KEY_ISLAND, 1, "Glass capsule", "Give the collapsed island the same live-blur material as the expanded one") },
                                 { LvSlider(model, LV.radiusKey(LvScene.ISLAND), LV.DEFAULT_SCALE, "Blur radius") },
@@ -1769,11 +1810,13 @@ private fun ScopeScreen(scope: AppScope, state: UiState, model: MainViewModel, o
                         )
                     }
                     item {
-                    SettingsGroup("Origin Island", rows = listOf(
-                        { Toggle("Live Updates", "Use Vivo's native OriginIsland pipeline", state.liveUpdatesInOriginIsland, model::setLiveUpdatesInOriginIsland) },
-                        { Toggle("All progress notifications", "Convert progress notifications to Vivo SuperX", state.allProgressInOriginIsland, model::setAllProgressInOriginIsland) },
-                        { Toggle("Flashlight controls", "Brightness control in an expanded island", state.flashlightInOriginIsland, model::setFlashlightInOriginIsland) }
-                    ))
+                        SettingsGroup("Origin Island", rows = listOf(
+                            { Toggle("Live Updates", "Use Vivo's native OriginIsland pipeline", state.liveUpdatesInOriginIsland, model::setLiveUpdatesInOriginIsland) },
+                            { Toggle("All progress notifications", "Convert progress notifications to Vivo SuperX", state.allProgressInOriginIsland, model::setAllProgressInOriginIsland) },
+                            { Toggle("Flashlight controls", "Brightness control in an expanded island", state.flashlightInOriginIsland, model::setFlashlightInOriginIsland) },
+                            { Toggle("Calls", "Show current calls in the island with the call's own buttons", state.callsInOriginIsland, model::setCallsInOriginIsland) },
+                            { Toggle("One-time codes", "Show verification codes in the island with a copy button", state.otpInOriginIsland, model::setOtpInOriginIsland) }
+                        ))
                     }
                 }
             }
@@ -1816,7 +1859,66 @@ private fun LvSlider(
 
 private fun lvOn(model: MainViewModel) = model.liquidVivo(LV.KEY_ENABLE, 0) == 1
 
-private const val LV_OFF_FOOTER = "Turn on Blur & glass in System UI Plugin to use these settings."
+// ---------------------------------------------------------------- Now Bar (HyperLight dynamic capsule)
+
+private val NB = NowBar
+
+@Composable
+private fun NbToggle(model: MainViewModel, key: String, title: String, summary: String) {
+    Toggle(title, summary, model.nowBar(key) == 1, { model.setNowBar(key, if (it) 1 else 0) })
+}
+
+@Composable
+private fun NbSlider(model: MainViewModel, key: String, title: String, range: ClosedFloatingPointRange<Float>, suffix: String) {
+    ValueSlider(title, model.nowBar(key).toFloat(), range, suffix, { model.setNowBar(key, it.toInt()) })
+}
+
+/** HyperLight's lockscreen music and status capsules, as a Now Bar on vivo's lockscreen. */
+private fun androidx.compose.foundation.lazy.LazyListScope.nowBarItems(model: MainViewModel) {
+    val on = model.nowBar(NB.KEY_ENABLED) == 1
+    item {
+        SettingsGroup("Now Bar", footer = "Applied live, no restart needed.", rows = listOf({
+            Toggle(
+                "NowBar",
+                "Music and status capsules at the bottom of the lockscreen with drag rebound; a strong swipe up folds notifications and the player into them. Ported from HyperLight",
+                on,
+                model::setNowBarEnabled
+            )
+        }))
+    }
+    if (!on) return
+    item {
+        SettingsGroup("Look", rows = listOf(
+            { NbToggle(model, NB.KEY_GLASS, "Liquid Glass", "Capsules in the lockscreen glass of the Liquid Glass page; off uses a plain tinted pill") },
+            { ThemeSegmentRow(model.nowBar(NB.KEY_LAYOUT), listOf("Side by side", "Stacked"), { model.setNowBar(NB.KEY_LAYOUT, it) }, "Capsule layout") },
+            { ThemeSegmentRow(model.nowBar(NB.KEY_TEXT_COLOR), listOf("Auto", "White", "Black"), { model.setNowBar(NB.KEY_TEXT_COLOR, it) }, "Capsule text color") },
+            { NbSlider(model, NB.KEY_SIZE, "Capsule size", 50f..200f, "%") },
+            { NbSlider(model, NB.KEY_OFFSET, "Distance from bottom", 0f..160f, " dp") },
+            { NbToggle(model, NB.KEY_HIDE_AOD, "Hide capsule in AOD", "Do not show the capsule while the always-on display is active") }
+        ))
+    }
+    run {
+        item {
+            SettingsGroup("Music capsule", rows = buildList {
+                add { NbToggle(model, NB.KEY_AUTO_HIDE_CARD, "Auto hide music card", "The lockscreen media card starts folded into the music capsule; tap the capsule and the card grows out of it") }
+                add { NbToggle(model, NB.KEY_SHOW_ARTIST, "Show artist", "Second line under the title") }
+                add { NbSlider(model, NB.KEY_MUSIC_WIDTH, "Music capsule text max width", 50f..200f, "%") }
+                add { NbSlider(model, NB.KEY_COVER_SIZE, "Cover size", 50f..100f, "%") }
+                add { ThemeSegmentRow(model.nowBar(NB.KEY_COVER_SHAPE), listOf("Rounded", "Circle"), { model.setNowBar(NB.KEY_COVER_SHAPE, it) }, "Cover shape") }
+                if (model.nowBar(NB.KEY_COVER_SHAPE) == 0) add { NbSlider(model, NB.KEY_COVER_CORNER, "Cover corner radius", 0f..50f, "%") }
+                add { NbSlider(model, NB.KEY_PLAY_SIZE, "Play button size", 50f..150f, "%") }
+            })
+        }
+    }
+    run {
+        item {
+            SettingsGroup("Status capsule", rows = listOf(
+                { NbToggle(model, NB.KEY_LIVE, "Timers and stopwatch", "A running timer, stopwatch or other live notification ticks in the status capsule") },
+                { NbSlider(model, NB.KEY_STATUS_WIDTH, "Status capsule max width", 50f..200f, "%") }
+            ))
+        }
+    }
+}
 
 // ---------------------------------------------------------------- Kyant iOS 26 glass rows
 
@@ -1832,67 +1934,104 @@ private fun KgSlider(model: MainViewModel, key: String, title: String, range: Cl
     ValueSlider(title, model.kyantGlass(key).toFloat(), range, suffix, { model.setKyantGlass(key, it.toInt()) })
 }
 
-/**
- * The Liquid Glass page: every Kyant glass surface, then one shared look (the same values drive
- * SystemUI and the launcher), then what only applies under the shade or on the home screen.
- */
-private fun androidx.compose.foundation.lazy.LazyListScope.glassScope(state: UiState, model: MainViewModel) {
-    item {
-        SettingsGroup("Surfaces", rows = listOf(
-            { KgToggle(model, KG.KEY_NOTIFICATIONS, "Notifications", "Notification and media cards") },
-            { KgToggle(model, KG.KEY_NOTIFICATION_BUTTONS, "Notification swipe buttons", "Settings and delete behind a half-swiped notification as glass drops that drip off the card") },
-            { KgToggle(model, KG.KEY_TILES, "Control center & volume", "Tiles, cards, sliders, shade buttons and the side volume panel") },
-            { Toggle("Lockscreen shortcuts", "Round glass flashlight and camera, press and hold for 0.4 s", state.lockscreenQuickToolGlass, model::setLockscreenQuickToolGlass) },
-            { KgSlider(model, KG.KEY_SHORTCUT_SIZE, "Lockscreen shortcut size", 36f..100f, " dp") },
-            { KgToggle(model, KG.KEY_PIN_KEYS, "PIN pad", "Number keys of the lockscreen password pad as round glass buttons") },
-            { KgToggle(model, KG.KEY_CLOCK, "Lockscreen clock", "vivo's clock digits in this glass instead of vivo's own material") },
-            { KgToggle(model, KG.KEY_FOLDERS, "Folders & widgets", "Folder plates and system widget backgrounds on the home screen") },
-            { KgToggle(model, KG.KEY_DOCK, "Dock", "The home screen dock") },
-            { KgToggle(model, KG.KEY_APP_MENU, "App menu", "The menu that opens when you press and hold an app on the home screen") },
-            { KgToggle(model, KG.KEY_APP_MENU_NO_BLUR, "No blur behind app menu", "Keep the home screen sharp behind the press-and-hold menu") },
-            { KgToggle(model, KG.KEY_SIDEBAR, "Sidebar", "The side app strip opened by holding the back gesture (gesture navigation)") },
-            { KgToggle(model, KG.KEY_WINDOW_MANAGER, "Window manager", "The sidebar's panel of apps that open as floating windows") },
-            { KgToggle(model, KG.KEY_RECENTS_CLEAR, "Recents clear button", "The round clear-all button under the recent apps") },
-            { KgToggle(model, KG.KEY_DIALOGS, "System dialogs", "Pop-up alerts as tinted glass with stacked rounded buttons, like iOS 26") }
-        ))
+/** One tab of the Liquid Glass page: the shared look, or one part of the system with its own glass. */
+private data class GlassTab(val title: String, val zone: KyantGlass.Zone?)
+
+private val glassTabs = listOf(
+    GlassTab("General", null),
+    GlassTab("Home screen", KyantGlass.Zone.HOME),
+    GlassTab("Lockscreen", KyantGlass.Zone.LOCKSCREEN),
+    GlassTab("Notifications", KyantGlass.Zone.NOTIFICATIONS),
+    GlassTab("Control center", KyantGlass.Zone.SHADE),
+    GlassTab("System", KyantGlass.Zone.SYSTEM)
+)
+
+/** Horizontal bar of the Liquid Glass sections. */
+@Composable
+private fun GlassTabBar(selected: Int, onSelect: (Int) -> Unit) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().background(OriginBgDark).padding(vertical = 6.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(glassTabs.size) { index ->
+            val shape = RoundedCornerShape(18.dp)
+            val on = index == selected
+            Box(
+                modifier = Modifier
+                    .height(36.dp)
+                    .clip(shape)
+                    .background(if (on) OriginAccentContainer else OriginCardBg, shape)
+                    .clickable { onSelect(index) }
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    glassTabs[index].title,
+                    color = if (on) OriginAccent else OriginTextSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
+        }
     }
+}
+
+/**
+ * The Liquid Glass page: a bar of sections on top. "General" holds the shared look; every other
+ * section holds its surfaces, their own options and, optionally, its own glass and stretch.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun androidx.compose.foundation.lazy.LazyListScope.glassScope(
+    state: UiState,
+    model: MainViewModel,
+    tab: Int,
+    onTab: (Int) -> Unit
+) {
+    stickyHeader(key = "glass_tabs") { GlassTabBar(tab, onTab) }
+    when (glassTabs.getOrNull(tab)?.zone) {
+        null -> glassGeneral(model)
+        KyantGlass.Zone.HOME -> glassHome(model)
+        KyantGlass.Zone.LOCKSCREEN -> glassLockscreen(state, model)
+        KyantGlass.Zone.NOTIFICATIONS -> glassNotifications(model)
+        KyantGlass.Zone.SHADE -> glassShade(model)
+        KyantGlass.Zone.SYSTEM -> glassSystem(model)
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.glassGeneral(model: MainViewModel) {
     item {
         SettingsGroup("Presets", footer = "Export copies the look as text you can share; import reads it back from the clipboard.", rows = listOf(
             { GroupActionRow("Clear (Kyant liquid glass)", onClick = { model.applyKyantGlassPreset(KG.CLEAR_PRESET) }) },
-            { GroupActionRow("Frosted (soft glass)", onClick = { model.applyKyantGlassPreset(KG.SOFT_PRESET) }) },
             { GroupActionRow("Crystal (thick lens)", onClick = { model.applyKyantGlassPreset(KG.CRYSTAL_PRESET) }) },
             { GroupActionRow("Export to clipboard", model::exportKyantGlass) },
             { GroupActionRow("Import from clipboard", model::importKyantGlass) }
         ))
     }
     item {
-        val soft = model.kyantGlass(KG.KEY_MATERIAL) == 1
-        SettingsGroup("Look", footer = "Shared by every glass surface.", rows = buildList {
-            add { Toggle("Soft glass", "Frosted material without the lens: a lit bevel with a soft shadow", soft, { model.setKyantGlass(KG.KEY_MATERIAL, if (it) 1 else 0) }) }
+        SettingsGroup("Glass", footer = "Shared by every part of the system that has no glass of its own.", rows = buildList {
             add { KgSlider(model, KG.KEY_BLUR, "Blur", 0f..30f, " dp") }
-            if (soft) {
-                add { KgSlider(model, KG.KEY_SOFT_EDGE, "Bevel width", 2f..40f, " dp") }
-                add { KgSlider(model, KG.KEY_SOFT_LIGHT, "Bevel light", 0f..100f, "%") }
-                add { KgSlider(model, KG.KEY_SOFT_SHADOW, "Bevel shadow", 0f..100f, "%") }
-                add { KgSlider(model, KG.KEY_SOFT_ELEVATION, "Light height", 5f..85f, "°") }
-            } else {
-                add { KgSlider(model, KG.KEY_REFRACTION_AMOUNT, "Refraction strength", 0f..120f, " dp") }
-                add { KgSlider(model, KG.KEY_REFRACTION_HEIGHT, "Edge thickness", 0f..60f, " dp") }
-                add { KgToggle(model, KG.KEY_DISPERSION, "Chromatic dispersion", "Rainbow fringes along the curved edge") }
-                add { KgSlider(model, KG.KEY_EDGE_GLOW, "Edge glow", 0f..100f, "%") }
-                add { KgToggle(model, KG.KEY_ADAPTIVE, "Adaptive lens", "Thinner lens on small buttons and tiles so they do not look warped") }
-                if (model.kyantGlass(KG.KEY_ADAPTIVE) == 1) {
-                    add { KgSlider(model, KG.KEY_SMALL_SCALE, "Lens on small surfaces", 10f..150f, "%") }
-                    add { KgSlider(model, KG.KEY_MEDIUM_SCALE, "Lens on medium surfaces", 10f..150f, "%") }
-                }
+            add { KgSlider(model, KG.KEY_REFRACTION_AMOUNT, "Refraction strength", 0f..120f, " dp") }
+            add { KgSlider(model, KG.KEY_REFRACTION_HEIGHT, "Edge thickness", 0f..60f, " dp") }
+            add { KgToggle(model, KG.KEY_DISPERSION, "Chromatic dispersion", "Rainbow fringes along the curved edge") }
+            add { KgSlider(model, KG.KEY_EDGE_GLOW, "Edge glow", 0f..100f, "%") }
+            add { KgToggle(model, KG.KEY_ADAPTIVE, "Adaptive lens", "Thinner lens on small buttons and tiles so they do not look warped") }
+            if (model.kyantGlass(KG.KEY_ADAPTIVE) == 1) {
+                add { KgSlider(model, KG.KEY_SMALL_SCALE, "Lens on small surfaces", 10f..150f, "%") }
+                add { KgSlider(model, KG.KEY_MEDIUM_SCALE, "Lens on medium surfaces", 10f..150f, "%") }
             }
+            add { KgSlider(model, KG.KEY_VIBRANCY, "Colour saturation", 0f..300f, "%") }
+            add { KgSlider(model, KG.KEY_BRIGHTNESS, "Brightness", -50f..50f, "%") }
+            add { KgSlider(model, KG.KEY_DIM, "Dimming", 0f..90f, "%") }
+        })
+    }
+    item {
+        SettingsGroup("Light", rows = buildList {
             add { KgSlider(model, KG.KEY_HIGHLIGHT, "Rim highlight", 0f..100f, "%") }
             add { KgSlider(model, KG.KEY_HIGHLIGHT_ANGLE, "Light angle", 0f..360f, "°") }
             add { KgToggle(model, KG.KEY_GYRO, "Light follows tilt", "The rim highlight moves along the edge as you tilt the phone") }
             if (model.kyantGlass(KG.KEY_GYRO) == 1) add { KgSlider(model, KG.KEY_GYRO_STRENGTH, "Tilt response", 0f..300f, "%") }
-            add { KgSlider(model, KG.KEY_VIBRANCY, "Colour saturation", 0f..300f, "%") }
-            add { KgSlider(model, KG.KEY_BRIGHTNESS, "Brightness", -50f..50f, "%") }
-            add { KgSlider(model, KG.KEY_DIM, "Dimming", 0f..90f, "%") }
         })
     }
     item {
@@ -1904,64 +2043,179 @@ private fun androidx.compose.foundation.lazy.LazyListScope.glassScope(state: UiS
         ))
     }
     item {
-        SettingsGroup("Touch", footer = "The glass under the finger lights up and stretches after it, like iOS 26.", rows = listOf(
+        SettingsGroup("Stretch & touch", footer = "The glass under the finger lights up and stretches after it, like iOS 26.", rows = listOf(
             { KgSlider(model, KG.KEY_ELASTIC, "Stretch after the finger", 0f..100f, "%") },
             { KgSlider(model, KG.KEY_TOUCH_GLOW, "Touch glow", 0f..100f, "%") },
             { KgSlider(model, KG.KEY_TOUCH_GLOW_RADIUS, "Glow size", 20f..200f, "%") },
             { KgSlider(model, KG.KEY_NEIGHBOR_GLOW, "Glow on nearby glass", 0f..100f, "%") },
-            { KgSlider(model, KG.KEY_NEIGHBOR_RADIUS, "Nearby reach", 20f..300f, " dp") },
-            { KgToggle(model, KG.KEY_HEADSUP_POP, "Heads-up pop", "Incoming heads-up notifications come in out of a blur") }
+            { KgSlider(model, KG.KEY_NEIGHBOR_RADIUS, "Nearby reach", 20f..300f, " dp") }
         ))
     }
     item {
-        SettingsGroup("Performance", footer = "Lower capture resolution and slower refresh save battery; the blur hides most of the difference.", rows = listOf(
-            { KgSlider(model, KG.KEY_CAPTURE_SCALE, "Backdrop resolution", 15f..60f, "%") },
-            { KgSlider(model, KG.KEY_REFRESH_MS, "Shade backdrop refresh", 250f..4000f, " ms") },
-            { KgSlider(model, KG.KEY_HOME_REFRESH_MS, "Home screen backdrop refresh", 200f..3000f, " ms") }
+        SettingsGroup("Performance", footer = "Lower capture resolution saves battery; the blur hides most of the difference.", rows = listOf(
+            { KgSlider(model, KG.KEY_CAPTURE_SCALE, "Backdrop resolution", 15f..60f, "%") }
         ))
     }
-    if (kyantAnyOn(model, KG.KEY_NOTIFICATIONS, KG.KEY_TILES)) {
-        item {
-            SettingsGroup("Shade", footer = "Shade background blur is vivo's own blur behind the whole shade; the glass blur is the Blur slider above.", rows = listOf(
-                { KgSlider(model, KG.KEY_SHADE_BLUR, "Shade background blur", 0f..200f, "%") },
-                { KgToggle(model, KG.KEY_SLIDER_FLAT, "Flat slider level", "Brightness and volume level ends in a straight edge instead of a rounded one") }
-            ))
-        }
-    }
-    if (model.kyantGlass(KG.KEY_CLOCK) == 1) {
-        item {
-            SettingsGroup("Lockscreen clock", footer = "The clock's own glass. Tint colour 0 % keeps a neutral tint of the chosen lightness.", rows = listOf(
-                { KgSlider(model, KG.KEY_CLOCK_TINT, "Tint", 0f..100f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_TINT_LIGHTNESS, "Tint lightness", 0f..100f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_TINT_CHROMA, "Tint colour", 0f..100f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_TINT_HUE, "Tint hue", 0f..360f, "°") },
-                { KgSlider(model, KG.KEY_CLOCK_BLUR, "Blur", 0f..30f, " dp") },
-                { KgSlider(model, KG.KEY_CLOCK_SATURATION, "Colour saturation", 0f..300f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_BRIGHTNESS, "Brightness", -50f..100f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_DIM, "Dimming", 0f..90f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_HIGHLIGHT, "Rim highlight", 0f..100f, "%") },
-                { KgSlider(model, KG.KEY_CLOCK_REFRACTION, "Refraction strength", 0f..120f, " dp") },
-                { KgSlider(model, KG.KEY_CLOCK_EDGE, "Edge thickness", 0f..40f, " dp") }
-            ))
-        }
-    }
-    if (model.kyantGlass(KG.KEY_DIALOGS) == 1) {
-        item {
-            SettingsGroup("Dialogs", rows = listOf(
-                { KgSlider(model, KG.KEY_DIALOG_RADIUS, "Dialog corner radius (0 = system)", 0f..60f, " dp") }
-            ))
-        }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.glassHome(model: MainViewModel) {
+    item {
+        SettingsGroup("Surfaces", rows = listOf(
+            { KgToggle(model, KG.KEY_FOLDERS, "Folders & widgets", "Folder plates and system widget backgrounds on the home screen") },
+            { KgToggle(model, KG.KEY_DOCK, "Dock", "The home screen dock") },
+            { KgToggle(model, KG.KEY_APP_MENU, "App menu", "The menu that opens when you press and hold an app on the home screen") },
+            { KgToggle(model, KG.KEY_APP_MENU_NO_BLUR, "No blur behind app menu", "Keep the home screen sharp behind the press-and-hold menu") },
+            { KgToggle(model, KG.KEY_RECENTS_CLEAR, "Recents clear button", "The round clear-all button under the recent apps") }
+        ))
     }
     if (model.kyantGlass(KG.KEY_DOCK) == 1) {
         item {
-            SettingsGroup("Dock", rows = buildList {
-                run {
-                    add { KgSlider(model, KG.KEY_DOCK_WIDTH, "Dock width", 50f..150f, "%") }
-                    add { KgSlider(model, KG.KEY_DOCK_HEIGHT, "Dock height", 50f..200f, "%") }
-                    add { KgSlider(model, KG.KEY_DOCK_RADIUS, "Dock corner radius (0 = system)", 0f..60f, " dp") }
-                }
-            })
+            SettingsGroup("Dock", rows = listOf(
+                { KgSlider(model, KG.KEY_DOCK_WIDTH, "Dock width", 50f..150f, "%") },
+                { KgSlider(model, KG.KEY_DOCK_HEIGHT, "Dock height", 50f..200f, "%") },
+                { KgSlider(model, KG.KEY_DOCK_RADIUS, "Dock corner radius (0 = system)", 0f..60f, " dp") }
+            ))
         }
+    }
+    item {
+        SettingsGroup("Backdrop", rows = listOf(
+            { KgSlider(model, KG.KEY_HOME_REFRESH_MS, "Backdrop refresh", 200f..3000f, " ms") }
+        ))
+    }
+    zoneLook(model, KyantGlass.Zone.HOME, KG.KEY_FOLDERS, KG.KEY_DOCK, KG.KEY_APP_MENU, KG.KEY_RECENTS_CLEAR)
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.glassLockscreen(state: UiState, model: MainViewModel) {
+    item {
+        SettingsGroup("Surfaces", footer = "Now Bar capsules follow this section's glass too.", rows = buildList {
+            add { Toggle("Lockscreen shortcuts", "Round glass flashlight and camera with iOS icons and placement, press and hold for 0.4 s", state.lockscreenQuickToolGlass, model::setLockscreenQuickToolGlass) }
+            if (state.lockscreenQuickToolGlass) add { KgSlider(model, KG.KEY_SHORTCUT_SIZE, "Shortcut size", 36f..100f, " dp") }
+            add { KgToggle(model, KG.KEY_PIN_KEYS, "PIN pad", "Number keys of the lockscreen password pad as round glass buttons") }
+            add { KgToggle(model, KG.KEY_CLOCK, "vivo clock", "vivo's own lockscreen clock digits in glass instead of vivo's material") }
+        })
+    }
+    if (model.kyantGlass(KG.KEY_CLOCK) == 1) {
+        item {
+            SettingsGroup("Clock glass", footer = "The clock's own glass. Tint colour 0 % keeps a neutral tint of the chosen lightness.", rows = listOf(
+                { KgSlider(model, KG.KEY_CLOCK_BLUR, "Blur", 0f..30f, " dp") },
+                { KgSlider(model, KG.KEY_CLOCK_REFRACTION, "Refraction strength", 0f..120f, " dp") },
+                { KgSlider(model, KG.KEY_CLOCK_EDGE, "Edge thickness", 0f..40f, " dp") },
+                { KgSlider(model, KG.KEY_CLOCK_HIGHLIGHT, "Rim highlight", 0f..100f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_SATURATION, "Colour saturation", 0f..300f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_BRIGHTNESS, "Brightness", -50f..100f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_DIM, "Dimming", 0f..90f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_TINT, "Tint", 0f..100f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_TINT_LIGHTNESS, "Tint lightness", 0f..100f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_TINT_CHROMA, "Tint colour", 0f..100f, "%") },
+                { KgSlider(model, KG.KEY_CLOCK_TINT_HUE, "Tint hue", 0f..360f, "°") }
+            ))
+        }
+    }
+    // Shortcuts and the Now Bar have no glass switch of their own here: always offer the look.
+    zoneLook(model, KyantGlass.Zone.LOCKSCREEN)
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.glassNotifications(model: MainViewModel) {
+    item {
+        SettingsGroup("Surfaces", rows = listOf(
+            { KgToggle(model, KG.KEY_NOTIFICATIONS, "Notifications", "Notification and media cards") },
+            { KgToggle(model, KG.KEY_NOTIFICATION_BUTTONS, "Notification swipe buttons", "Settings and delete behind a half-swiped notification as glass drops that drip off the card") },
+            { KgToggle(model, KG.KEY_HEADSUP_POP, "Heads-up pop", "Incoming heads-up notifications come in out of a blur") }
+        ))
+    }
+    zoneLook(model, KyantGlass.Zone.NOTIFICATIONS, KG.KEY_NOTIFICATIONS, KG.KEY_NOTIFICATION_BUTTONS)
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.glassShade(model: MainViewModel) {
+    item {
+        SettingsGroup("Surfaces", rows = buildList {
+            add { KgToggle(model, KG.KEY_TILES, "Control center & volume", "Tiles, cards, sliders, shade buttons and the side volume panel") }
+            if (model.kyantGlass(KG.KEY_TILES) == 1) {
+                add { KgToggle(model, KG.KEY_SLIDER_FLAT, "Flat slider level", "Brightness and volume level ends in a straight edge instead of a rounded one") }
+            }
+        })
+    }
+    if (kyantAnyOn(model, KG.KEY_NOTIFICATIONS, KG.KEY_TILES)) {
+        item {
+            SettingsGroup("Shade background", footer = "vivo's own blur behind the whole shade, apart from the glass blur.", rows = listOf(
+                { KgSlider(model, KG.KEY_SHADE_BLUR, "Shade background blur", 0f..200f, "%") },
+                { KgSlider(model, KG.KEY_REFRESH_MS, "Backdrop refresh", 250f..4000f, " ms") }
+            ))
+        }
+    }
+    zoneLook(model, KyantGlass.Zone.SHADE, KG.KEY_TILES)
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.glassSystem(model: MainViewModel) {
+    item {
+        SettingsGroup("Surfaces", rows = buildList {
+            add { KgToggle(model, KG.KEY_DIALOGS, "System dialogs", "Pop-up alerts as tinted glass with stacked rounded buttons, like iOS 26") }
+            if (model.kyantGlass(KG.KEY_DIALOGS) == 1) {
+                add { KgSlider(model, KG.KEY_DIALOG_RADIUS, "Dialog corner radius (0 = system)", 0f..60f, " dp") }
+            }
+            add { KgToggle(model, KG.KEY_SIDEBAR, "Sidebar", "The side app strip opened by holding the back gesture (gesture navigation)") }
+            add { KgToggle(model, KG.KEY_WINDOW_MANAGER, "Window manager", "The sidebar's panel of apps that open as floating windows") }
+            add { KgToggle(model, KG.KEY_CONTROLS, "Liquid switches & sliders", "Every on/off switch and slider — in this app, Settings and the whole system — as Kyant's liquid glass toggle and slider") }
+        })
+    }
+    zoneLook(model, KyantGlass.Zone.SYSTEM, KG.KEY_DIALOGS, KG.KEY_SIDEBAR, KG.KEY_WINDOW_MANAGER)
+}
+
+@Composable
+private fun ZoneSlider(model: MainViewModel, zone: KyantGlass.Zone, key: String, title: String, range: ClosedFloatingPointRange<Float>, suffix: String) {
+    ValueSlider(title, model.kyantGlassZone(zone, key).toFloat(), range, suffix, { model.setKyantGlassZone(zone, key, it.toInt()) })
+}
+
+/**
+ * A section's own glass: off follows the General look; on gives the section its own blur, lens,
+ * tint and stretch. Shown once one of [surfaces] is on (always when none are given).
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.zoneLook(model: MainViewModel, zone: KyantGlass.Zone, vararg surfaces: String) {
+    if (surfaces.isNotEmpty() && !kyantAnyOn(model, *surfaces)) return
+    val custom = model.kyantGlassZoneCustom(zone)
+    item {
+        SettingsGroup(
+            "Own glass",
+            footer = if (custom) null else "Off: this section wears the General look.",
+            rows = listOf({
+                Toggle("Own glass", "Blur, lens, tint and stretch just for this section", custom, { model.setKyantGlassZoneCustom(zone, it) })
+            })
+        )
+    }
+    if (!custom) return
+    item {
+        SettingsGroup("Glass", rows = listOf(
+            { ZoneSlider(model, zone, KG.KEY_BLUR, "Blur", 0f..30f, " dp") },
+            { ZoneSlider(model, zone, KG.KEY_REFRACTION_AMOUNT, "Refraction strength", 0f..120f, " dp") },
+            { ZoneSlider(model, zone, KG.KEY_REFRACTION_HEIGHT, "Edge thickness", 0f..60f, " dp") },
+            {
+                Toggle("Chromatic dispersion", "Rainbow fringes along the curved edge", model.kyantGlassZone(zone, KG.KEY_DISPERSION) == 1,
+                    { model.setKyantGlassZone(zone, KG.KEY_DISPERSION, if (it) 1 else 0) })
+            },
+            { ZoneSlider(model, zone, KG.KEY_EDGE_GLOW, "Edge glow", 0f..100f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_HIGHLIGHT, "Rim highlight", 0f..100f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_VIBRANCY, "Colour saturation", 0f..300f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_BRIGHTNESS, "Brightness", -50f..50f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_DIM, "Dimming", 0f..90f, "%") }
+        ))
+    }
+    item {
+        SettingsGroup("Tint", rows = listOf(
+            { ZoneSlider(model, zone, KG.KEY_TINT, "Tint (light theme)", 0f..60f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_TINT_DARK, "Tint (dark theme)", 0f..60f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_TINT_CHROMA, "Colour", 0f..100f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_TINT_HUE, "Hue", 0f..360f, "°") }
+        ))
+    }
+    item {
+        SettingsGroup("Stretch & touch", rows = listOf(
+            { ZoneSlider(model, zone, KG.KEY_ELASTIC, "Stretch after the finger", 0f..100f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_TOUCH_GLOW, "Touch glow", 0f..100f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_TOUCH_GLOW_RADIUS, "Glow size", 20f..200f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_NEIGHBOR_GLOW, "Glow on nearby glass", 0f..100f, "%") },
+            { ZoneSlider(model, zone, KG.KEY_NEIGHBOR_RADIUS, "Nearby reach", 20f..300f, " dp") },
+            { GroupActionRow("Copy the General look", onClick = { model.resetKyantGlassZone(zone) }) }
+        ))
     }
 }
 

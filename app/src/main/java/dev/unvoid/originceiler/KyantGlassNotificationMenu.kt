@@ -344,7 +344,7 @@ object KyantGlassNotificationMenu {
          * card edge where the drop hangs on it, and the rim of the whole outline.
          */
         private inner class GooDrawable(private val joint: Boolean) : android.graphics.drawable.Drawable() {
-            private val renderer = KyantGlass.Renderer()
+            private val renderer = KyantGlass.Renderer(KyantGlass.Zone.NOTIFICATIONS)
             private val radii = FloatArray(4)
             private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
@@ -375,12 +375,12 @@ object KyantGlassNotificationMenu {
                     renderer.draw(canvas, item, shapeBounds, radii, backdrop, highlight = false, dim = true,
                         lensScale = lens, withTouchGlow = false)
                     canvas.restore()
-                    if (backdrop == null) item.postInvalidateDelayed(120L)
+                    KyantGlass.retryBackdrop(item, backdrop, 120L)
                 }
                 if (joint) {
                     // Never over the card itself, save the joint strip.
                     canvas.clipRect(if (e.isNaN()) -1e6f else e - 4f * density, -1e6f, 1e6f, 1e6f)
-                    val hl = KyantGlass.config[KyantGlass.KEY_HIGHLIGHT].coerceIn(0, 100) / 100f
+                    val hl = KyantGlass.configFor(KyantGlass.Zone.NOTIFICATIONS)[KyantGlass.KEY_HIGHLIGHT].coerceIn(0, 100) / 100f
                     sheenPaint.strokeWidth = 5f * density
                     sheenPaint.color = android.graphics.Color.argb((hl * 0.10f * 255).toInt().coerceIn(0, 255), 255, 255, 255)
                     canvas.save()

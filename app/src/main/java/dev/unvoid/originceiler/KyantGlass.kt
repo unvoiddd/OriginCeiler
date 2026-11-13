@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.database.ContentObserver
 import android.graphics.BlendMode
+import android.graphics.LinearGradient
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -106,6 +107,8 @@ object KyantGlass {
     const val KEY_DIALOGS = PREFIX + "dialogs"
     /** Recents: the round "clear all" button is glass. */
     const val KEY_RECENTS_CLEAR = PREFIX + "recents_clear"
+    /** Every on/off switch and slider (this app, Settings, the whole system) as Kyant's liquid toggle / slider. */
+    const val KEY_CONTROLS = PREFIX + "controls"
     /** Corner radius of those dialogs in dp (0 = vivo's own). */
     const val KEY_DIALOG_RADIUS = PREFIX + "dialog_radius"
 
@@ -186,7 +189,7 @@ object KyantGlass {
     val DEFAULTS = mapOf(
         KEY_NOTIFICATIONS to 0, KEY_TILES to 0, KEY_FOLDERS to 0, KEY_DOCK to 0,
         KEY_PIN_KEYS to 0, KEY_HEADSUP_POP to 0, KEY_CLOCK to 0,
-        KEY_APP_MENU to 0, KEY_APP_MENU_NO_BLUR to 0, KEY_SIDEBAR to 0, KEY_WINDOW_MANAGER to 0, KEY_NOTIFICATION_BUTTONS to 0, KEY_DIALOGS to 0, KEY_DIALOG_RADIUS to 0, KEY_RECENTS_CLEAR to 0,
+        KEY_APP_MENU to 0, KEY_APP_MENU_NO_BLUR to 0, KEY_SIDEBAR to 0, KEY_WINDOW_MANAGER to 0, KEY_NOTIFICATION_BUTTONS to 0, KEY_DIALOGS to 0, KEY_DIALOG_RADIUS to 0, KEY_RECENTS_CLEAR to 0, KEY_CONTROLS to 0,
         KEY_CLOCK_TINT to 18, KEY_CLOCK_TINT_HUE to 210, KEY_CLOCK_TINT_CHROMA to 0, KEY_CLOCK_TINT_LIGHTNESS to 100,
         KEY_CLOCK_BLUR to 8, KEY_CLOCK_SATURATION to 130, KEY_CLOCK_BRIGHTNESS to 8, KEY_CLOCK_DIM to 0,
         KEY_CLOCK_HIGHLIGHT to 45, KEY_CLOCK_REFRACTION to 60, KEY_CLOCK_EDGE to 14,
@@ -202,18 +205,69 @@ object KyantGlass {
     /** Keys that describe the look (presets, export / import); surface switches stay out. */
     val LOOK_KEYS: Set<String> get() = DEFAULTS.keys - setOf(
         KEY_NOTIFICATIONS, KEY_TILES, KEY_FOLDERS, KEY_DOCK, KEY_PIN_KEYS, KEY_HEADSUP_POP, KEY_DEBUG_DUMP, KEY_CLOCK,
-        KEY_APP_MENU, KEY_APP_MENU_NO_BLUR, KEY_SIDEBAR, KEY_WINDOW_MANAGER, KEY_NOTIFICATION_BUTTONS, KEY_DIALOGS, KEY_RECENTS_CLEAR
-    )
+        KEY_APP_MENU, KEY_APP_MENU_NO_BLUR, KEY_SIDEBAR, KEY_WINDOW_MANAGER, KEY_NOTIFICATION_BUTTONS, KEY_DIALOGS, KEY_RECENTS_CLEAR, KEY_CONTROLS
+    ) + ZONE_SETTING_KEYS
+
+    // ---------------------------------------------------------------- zones
+
+    /**
+     * Parts of the system that can wear their own glass: with a zone's "own look" switch on, its
+     * [ZONE_KEYS] come from that zone's keys instead of the shared look.
+     */
+    enum class Zone(val id: String) {
+        HOME("home"), LOCKSCREEN("lock"), NOTIFICATIONS("notif"), SHADE("shade"), SYSTEM("system")
+    }
+
+    /** Look settings a zone may override: material, tint and how it reacts to the finger. */
+    val ZONE_KEYS: List<String> by lazy {
+        listOf(
+            KEY_BLUR, KEY_REFRACTION_AMOUNT, KEY_REFRACTION_HEIGHT, KEY_DISPERSION, KEY_EDGE_GLOW,
+            KEY_HIGHLIGHT, KEY_VIBRANCY, KEY_BRIGHTNESS, KEY_DIM,
+            KEY_TINT, KEY_TINT_DARK, KEY_TINT_CHROMA, KEY_TINT_HUE,
+            KEY_ELASTIC, KEY_TOUCH_GLOW, KEY_TOUCH_GLOW_RADIUS, KEY_NEIGHBOR_GLOW, KEY_NEIGHBOR_RADIUS,
+        )
+    }
+    private val ZONE_KEY_SET: Set<String> by lazy { ZONE_KEYS.toHashSet() }
+
+    fun zoneCustomKey(zone: Zone) = PREFIX + "z_" + zone.id + "_custom"
+    fun zoneKey(zone: Zone, key: String) = PREFIX + "z_" + zone.id + "_" + key.removePrefix(PREFIX)
+
+    /** Every per-zone setting (switches and overrides); absent ones fall back to the shared look. */
+    val ZONE_SETTING_KEYS: List<String> by lazy {
+        Zone.entries.flatMap { z -> listOf(zoneCustomKey(z)) + ZONE_KEYS.map { zoneKey(z, it) } }
+    }
+
+    /** The zone a surface switch belongs to. */
+    fun zoneOf(enabledKey: String): Zone? = when (enabledKey) {
+        KEY_FOLDERS, KEY_DOCK, KEY_APP_MENU, KEY_APP_MENU_NO_BLUR, KEY_RECENTS_CLEAR -> Zone.HOME
+        KEY_PIN_KEYS, KEY_CLOCK, KEY_SHORTCUT_SIZE -> Zone.LOCKSCREEN
+        KEY_NOTIFICATIONS, KEY_NOTIFICATION_BUTTONS, KEY_HEADSUP_POP -> Zone.NOTIFICATIONS
+        KEY_TILES, KEY_SLIDER_FLAT -> Zone.SHADE
+        KEY_DIALOGS, KEY_SIDEBAR, KEY_WINDOW_MANAGER, KEY_CONTROLS -> Zone.SYSTEM
+        else -> null
+    }
 
     // ---------------------------------------------------------------- config
 
-    class Config(private val values: Map<String, Int>) {
-        operator fun get(key: String): Int = values[key] ?: DEFAULTS[key] ?: 0
+    class Config(private val values: Map<String, Int>, val zone: Zone? = null) {
+        private val custom = zone != null && values[zoneCustomKey(zone)] == 1
+        operator fun get(key: String): Int {
+            if (custom && key in ZONE_KEY_SET) values[zoneKey(zone!!, key)]?.let { return it }
+            return values[key] ?: DEFAULTS[key] ?: 0
+        }
         fun on(key: String) = get(key) == 1
     }
 
     @Volatile var config = Config(emptyMap())
         private set
+
+    @Volatile private var zoneConfigs: Map<Zone, Config> = emptyMap()
+
+    /** The look a surface of [zone] draws with (the shared one when the zone has no own look). */
+    fun configFor(zone: Zone?): Config = if (zone == null) config else zoneConfigs[zone] ?: config
+
+    /** True when the shared look or any zone's own look passes [test]. */
+    fun anyLook(test: (Config) -> Boolean): Boolean = test(config) || zoneConfigs.values.any(test)
 
     private val observerInstalled = AtomicBoolean(false)
     val configLoaded: Boolean get() = observerInstalled.get()
@@ -224,9 +278,16 @@ object KyantGlass {
         if (!observerInstalled.compareAndSet(false, true)) return
         val cr = context.applicationContext?.contentResolver ?: context.contentResolver
         fun load() {
-            config = Config(DEFAULTS.keys.associateWith { key ->
-                runCatching { Settings.Global.getInt(cr, key, DEFAULTS[key] ?: 0) }.getOrDefault(DEFAULTS[key] ?: 0)
-            })
+            val values = HashMap<String, Int>()
+            DEFAULTS.keys.forEach { key ->
+                values[key] = runCatching { Settings.Global.getInt(cr, key, DEFAULTS[key] ?: 0) }.getOrDefault(DEFAULTS[key] ?: 0)
+            }
+            // Zone overrides exist only once set; a missing one keeps the shared value.
+            ZONE_SETTING_KEYS.forEach { key ->
+                runCatching { Settings.Global.getString(cr, key)?.toIntOrNull() }.getOrNull()?.let { values[key] = it }
+            }
+            config = Config(values)
+            zoneConfigs = Zone.entries.associateWith { Config(values, it) }
         }
         load()
         KyantGlassDebug.note(context, "config observer in ${context.packageName}")
@@ -250,6 +311,23 @@ object KyantGlass {
     /** Views redrawn whenever a glass setting changes. */
     fun track(view: View) {
         tracked[view] = true
+    }
+
+    private val backdropMisses = java.util.WeakHashMap<View, Long>()
+    private const val BACKDROP_RETRY_WINDOW_MS = 3000L
+
+    /**
+     * A surface drew without a backdrop: look again shortly, but only for a few seconds and only
+     * while capturing works, so a missing frame cannot keep a view redrawing forever.
+     */
+    fun retryBackdrop(view: View, frame: Bitmap?, delayMs: Long) {
+        val now = android.os.SystemClock.uptimeMillis()
+        synchronized(backdropMisses) {
+            if (frame != null) { backdropMisses.remove(view); return }
+            val since = backdropMisses.getOrPut(view) { now }
+            if (now - since > BACKDROP_RETRY_WINDOW_MS || !KyantGlassHook.ShadeBackdrop.available) return
+        }
+        view.postInvalidateDelayed(delayMs)
     }
 
     fun invalidateTracked() {
@@ -485,14 +563,31 @@ half4 main(float2 coord) {
     /** Cross-fade between two backdrop frames. */
     private const val FADE_MS = 220L
 
-    private val preBlurred = Collections.synchronizedMap(WeakHashMap<Bitmap, Boolean>())
+    private val preBlurred = Collections.synchronizedMap(WeakHashMap<Bitmap, Float>())
 
-    /** Marks a backdrop that already carries the glass blur: the per-frame effect skips it. */
-    fun markPreBlurred(bitmap: Bitmap) {
-        preBlurred[bitmap] = true
+    /**
+     * Marks a backdrop that already carries [screenPx] of blur (screen pixels; infinite = all a
+     * surface needs): the per-frame effect only adds what a zone wants on top of it.
+     */
+    fun markPreBlurred(bitmap: Bitmap, screenPx: Float = Float.POSITIVE_INFINITY) {
+        preBlurred[bitmap] = screenPx
     }
 
     fun isPreBlurred(bitmap: Bitmap): Boolean = preBlurred.containsKey(bitmap)
+
+    /** Blur still to apply over [backdrop] for a total of [wanted] px (gaussian radii add in quadrature). */
+    fun remainingBlur(backdrop: Bitmap, wanted: Float): Float {
+        val pre = preBlurred[backdrop] ?: return wanted
+        if (pre >= wanted) return 0f
+        return kotlin.math.sqrt(wanted * wanted - pre * pre)
+    }
+
+    /** The smallest glass blur any look uses (px): what a shared capture can be pre-blurred with. */
+    fun minBlurPx(density: Float): Float {
+        var min = config[KEY_BLUR]
+        Zone.entries.forEach { min = minOf(min, configFor(it)[KEY_BLUR]) }
+        return min.coerceAtLeast(0) * density
+    }
 
     /**
      * CPU Gaussian approximation (three box passes, separable) matching RenderEffect's blur
@@ -572,7 +667,7 @@ half4 main(float2 coord) {
      * listener re-records just the backdrop node with the new screen transform, so the glass
      * follows the motion in the same frame without redrawing the host view.
      */
-    class Renderer {
+    class Renderer(private val zone: Zone? = null) {
         private val contentNode by lazy { RenderNode("KyantGlassContent") }
         private val refraction by lazy { RuntimeShader(REFRACTION) }
         private val highlightShader by lazy { RuntimeShader(HIGHLIGHT) }
@@ -588,6 +683,10 @@ half4 main(float2 coord) {
         private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val edgePaint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.PLUS }
+        private val strokeRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+        private val strokeRimPath = Path()
+        private val strokeRimRect = RectF()
+        private val strokeRimRadii = FloatArray(8)
         private val softwareStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
         private val screenLoc = IntArray(2)
         private val windowLoc = IntArray(2)
@@ -624,8 +723,8 @@ half4 main(float2 coord) {
         }
 
         /** Rim only (edge glow + highlight) for surfaces that keep their own fill. */
-        fun drawRimOnly(canvas: Canvas, view: View, bounds: RectF, radii: FloatArray, edgeGlow: Boolean = true) =
-            draw(canvas, view, bounds, radii, null, tint = false, edgeGlow = edgeGlow)
+        fun drawRimOnly(canvas: Canvas, view: View, bounds: RectF, radii: FloatArray, edgeGlow: Boolean = true, rimInset: Float = 0f) =
+            draw(canvas, view, bounds, radii, null, tint = false, edgeGlow = edgeGlow, rimInset = rimInset)
 
         /**
          * Draws glass into [bounds] (canvas coordinates of [view]) with per-corner [radii]
@@ -648,12 +747,18 @@ half4 main(float2 coord) {
             /** Moves the rim highlight inwards (px): hosts that clip their outer edge. */
             rimInset: Float = 0f,
             /** Light under the finger (off when another layer draws it for this surface). */
-            withTouchGlow: Boolean = true
+            withTouchGlow: Boolean = true,
+            /**
+             * Rim as a plain stroked outline with a linear light gradient (source-over, no runtime
+             * shader, no PLUS): vivo's notification cards lost the shader rim under their
+             * hardware-layered content and in collapsed stacks, a plain stroke always shows.
+             */
+            strokeRim: Boolean = false
         ) {
             val w = bounds.width()
             val h = bounds.height()
             if (w < 1f || h < 1f) return
-            val cfg = config
+            val cfg = configFor(zone)
             val density = view.resources.displayMetrics.density
             val dark = (view.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
             val maxR = minOf(w, h) / 2f
@@ -744,7 +849,9 @@ half4 main(float2 coord) {
 
             // 4. Rim highlight on both lit sides plus a soft inward sheen.
             val hl = if (highlight) cfg[KEY_HIGHLIGHT].coerceIn(0, 100) / 100f else 0f
-            if (hl > 0f) {
+            if (hl > 0f && strokeRim) {
+                drawStrokeRim(canvas, view, bounds, cfg, density, hl, rimInset)
+            } else if (hl > 0f) {
                 highlightShader.setFloatUniform("size", w, h)
                 highlightShader.setFloatUniform("cornerRadii", radii8[0], radii8[2], radii8[4], radii8[6])
                 highlightShader.setFloatUniform("angle", KyantGlassLight.angle(view.context, cfg[KEY_HIGHLIGHT_ANGLE]))
@@ -777,6 +884,40 @@ half4 main(float2 coord) {
                 canvas.restore()
             }
             canvas.restoreToCount(save)
+        }
+
+        /**
+         * The rim of [strokeRim] surfaces: a thin line just inside the edge plus a wider, fainter
+         * sheen line, lit on the light-facing and the opposite side (Kyant's |dot(normal, light)|)
+         * through a linear gradient along the light direction, transparent across the middle.
+         */
+        private fun drawStrokeRim(canvas: Canvas, view: View, bounds: RectF, cfg: Config, density: Float, hl: Float, rimInset: Float) {
+            val angle = KyantGlassLight.angle(view.context, cfg[KEY_HIGHLIGHT_ANGLE]).toDouble()
+            val dx = kotlin.math.cos(angle).toFloat()
+            val dy = kotlin.math.sin(angle).toFloat()
+            val cx = bounds.centerX()
+            val cy = bounds.centerY()
+            // Half the extent of the shape along the light direction.
+            val reach = (kotlin.math.abs(dx) * bounds.width() + kotlin.math.abs(dy) * bounds.height()) / 2f
+            fun pass(width: Float, alpha: Float) {
+                if (alpha <= 0f || width <= 0f) return
+                val inset = rimInset + width / 2f
+                strokeRimRect.set(bounds.left + inset, bounds.top + inset, bounds.right - inset, bounds.bottom - inset)
+                if (strokeRimRect.width() <= 0f || strokeRimRect.height() <= 0f) return
+                for (i in 0 until 8) strokeRimRadii[i] = (radii8[i] - inset).coerceAtLeast(0f)
+                strokeRimPath.rewind()
+                strokeRimPath.addRoundRect(strokeRimRect, strokeRimRadii, Path.Direction.CW)
+                val lit = Color.argb((alpha * 255).toInt().coerceIn(0, 255), 255, 255, 255)
+                strokeRimPaint.shader = LinearGradient(
+                    cx - dx * reach, cy - dy * reach, cx + dx * reach, cy + dy * reach,
+                    intArrayOf(lit, Color.TRANSPARENT, lit), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP
+                )
+                strokeRimPaint.strokeWidth = width
+                canvas.drawPath(strokeRimPath, strokeRimPaint)
+            }
+            pass((minOf(bounds.width(), bounds.height()) * 0.05f).coerceIn(2f * density, 5f * density), hl * 0.18f)
+            pass(maxOf(0.9f * density, 1.5f), hl)
+            strokeRimPaint.shader = null
         }
 
         /**
@@ -829,7 +970,7 @@ half4 main(float2 coord) {
             val w = bounds.width()
             val h = bounds.height()
             // Captured frames arrive pre-blurred (worker thread): no blur pass per surface per frame.
-            val blur = if (isPreBlurred(backdrop)) 0f else blurPx(cfg, density, matchShade)
+            val blur = remainingBlur(backdrop, blurPx(cfg, density, matchShade))
             val rh = (cfg[KEY_REFRACTION_HEIGHT] * density * lensScale).coerceAtMost(minOf(w, h) / 2f)
             val ra = cfg[KEY_REFRACTION_AMOUNT] * density * lensScale
             // The lens samples up to `ra` outside the shape and the blur ~2 sigma around it.
@@ -1029,10 +1170,12 @@ half4 main(float2 coord) {
         private val lensScale: Float = 1f,
         /** The view that stretches after the finger (the host or a parent), null = never. */
         private val elastic: ((View) -> View?)? = null,
+        /** Whose look the surface wears; by default the zone of [enabledKey]. */
+        private val zone: Zone? = zoneOf(enabledKey),
         private val radius: (View, Float, Float) -> Float
     ) : Drawable() {
         private val viewRef = WeakReference(view)
-        private val renderer = Renderer()
+        private val renderer = Renderer(zone)
         private val rect = RectF()
         private val radii = FloatArray(4)
 
@@ -1059,13 +1202,13 @@ half4 main(float2 coord) {
             }
             lastRadius = r
             radii.fill(r)
-            elastic?.let { KyantGlassTouch.registerHost(view, it) }
+            elastic?.let { KyantGlassTouch.registerHost(view, it, zone) }
             KyantGlassHook.dropVivoEffect(view)
             val frame = backdrop(view)
             renderer.draw(canvas, view, rect, radii, frame, highlight = highlight, dim = dim, surfaceColor = surface(view), lensScale = lensScale)
             // No backdrop yet (a capture is on its way): look again shortly rather than wait for
             // something else to redraw the surface.
-            if (frame == null) view.postInvalidateDelayed(BACKDROP_RETRY_MS)
+            retryBackdrop(view, frame, BACKDROP_RETRY_MS)
         }
 
         override fun setAlpha(alpha: Int) = Unit

@@ -26,8 +26,13 @@ object KyantGlassLight {
     /** Rest pose time constant and output smoothing (s). */
     private const val REST_TAU = 3f
     private const val SMOOTH_TAU = 0.08f
-    /** Redraw when the light moved by at least this much (deg). */
-    private const val REDRAW_STEP = 0.8f
+    /**
+     * Redraw when the light moved by at least this much (deg). Every redraw repaints all glass on
+     * screen, so hand tremor must not reach it (0.8 deg kept the home screen redrawing nonstop).
+     */
+    private const val REDRAW_STEP = 2.5f
+    /** At most this many light-only redraws per second. */
+    private const val MIN_REDRAW_GAP_MS = 50L
 
     private val main = Handler(Looper.getMainLooper())
     /** Called when the light moved enough to redraw (surfaces that bake it into an effect). */
@@ -43,6 +48,11 @@ object KyantGlassLight {
     private var restY = Float.NaN
     @Volatile private var offsetDeg = 0f
     private var drawnOffset = 0f
+    private var redrawAt = 0L
+
+    /** When the light last asked for a redraw (that redraw needs no fresh backdrop). */
+    @Volatile var lightRedrawAt = 0L
+        private set
 
     private val listener = object : SensorEventListener {
         override fun onSensorChanged(event: SensorEvent) {
@@ -55,8 +65,10 @@ object KyantGlassLight {
             val strength = KyantGlass.config[KyantGlass.KEY_GYRO_STRENGTH].coerceIn(0, 300) / 100f
             val target = (gx.coerceIn(-1f, 1f) * ROLL_DEG + (gy - restY).coerceIn(-1f, 1f) * PITCH_DEG) * strength
             offsetDeg += (target - offsetDeg) * (1f - exp(-dt / SMOOTH_TAU))
-            if (abs(offsetDeg - drawnOffset) >= REDRAW_STEP) {
+            if (abs(offsetDeg - drawnOffset) >= REDRAW_STEP && now - redrawAt >= MIN_REDRAW_GAP_MS) {
                 drawnOffset = offsetDeg
+                redrawAt = now
+                lightRedrawAt = now
                 KyantGlass.invalidateTracked()
                 synchronized(listeners) { listeners.toList() }.forEach { runCatching { it() } }
             }
@@ -86,7 +98,7 @@ object KyantGlassLight {
         if (listening) return
         val sm = manager ?: (context.applicationContext ?: context).getSystemService(SensorManager::class.java)?.also { manager = it } ?: return
         val sensor = sm.getDefaultSensor(Sensor.TYPE_GRAVITY) ?: sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
-        listening = runCatching { sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME, main) }.getOrDefault(false)
+        listening = runCatching { sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI, main) }.getOrDefault(false)
         if (listening) {
             lastEventAt = 0L
             main.postDelayed(idleCheck, IDLE_STOP_MS)

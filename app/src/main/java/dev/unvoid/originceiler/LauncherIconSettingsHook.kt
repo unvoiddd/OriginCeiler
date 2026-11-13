@@ -240,7 +240,15 @@ class LauncherIconSettingsHook {
         val packMono = create("CheckBoxPreference").setup(KEY_PACK_MONO, text.packMono, text.packMonoSummary)
         val packInvert = create("CheckBoxPreference").setup(KEY_PACK_INVERT, text.invert, text.packInvertSummary)
         val packOptions = listOf(recolor, background, packScale, packTint, packMono, packInvert)
-        listOf(pack, recolor, background, packScale, packTint, packMono, packInvert, themed, color, invert, glyph)
+        val styleEntries = listOf(ColorOsIconStyles.OFF.toString() to text.styleOff) +
+            ColorOsIconStyles.STYLES.map { it.toString() to text.styleName(it) }
+        val osStyle = create("ListPreference").setup(KEY_OS_STYLE, text.style).list(styleEntries)
+        val osShape = create("ListPreference").setup(KEY_OS_SHAPE, text.shape).list(text.shapes)
+        val radiusSteps = (ColorOsIconStyles.RADIUS_MIN..ColorOsIconStyles.RADIUS_MAX step 5).map { "$it" to "$it" }
+        val osRadius = create("ListPreference").setup(KEY_OS_RADIUS, text.radius).list(radiusSteps)
+        val osDark = create("CheckBoxPreference").setup(KEY_OS_DARK, text.darkIcons, text.darkIconsSummary)
+        listOf(pack, recolor, background, packScale, packTint, packMono, packInvert, themed, color, invert, glyph,
+            osStyle, osShape, osRadius, osDark)
             .forEach { call(category, "addPreference", it) }
 
         fun refresh() {
@@ -267,6 +275,17 @@ class LauncherIconSettingsHook {
             val glyphKey = glyphSizes.minByOrNull { abs(it.first.toInt() - scale) }!!.first
             call(glyph, "setValue", glyphKey)
             listOf(color, invert, glyph).forEach { call(it, "setVisible", themedOn) }
+
+            val style = if (activePack == null && !themedOn) ColorOsIconStyles.style(context) else ColorOsIconStyles.OFF
+            val shape = Settings.Global.getInt(resolver, ColorOsIconStyles.SETTING_SHAPE, ColorOsIconStyles.SHAPE_ROUNDED)
+            val radiusValue = Settings.Global.getInt(resolver, ColorOsIconStyles.SETTING_RADIUS, ColorOsIconStyles.RADIUS_DEFAULT)
+            call(osStyle, "setValue", style.toString())
+            call(osShape, "setValue", text.shapes.firstOrNull { it.first == shape.toString() }?.first ?: "0")
+            call(osRadius, "setValue", radiusSteps.minByOrNull { abs(it.first.toInt() - radiusValue) }!!.first)
+            call(osDark, "setChecked", Settings.Global.getInt(resolver, ColorOsIconStyles.SETTING_DARK, 0) == 1)
+            call(osShape, "setVisible", ColorOsIconStyles.hasShape(style))
+            call(osRadius, "setVisible", ColorOsIconStyles.hasRadius(style, shape))
+            call(osDark, "setVisible", style != ColorOsIconStyles.OFF)
         }
 
         pack.onChange { value ->
@@ -276,6 +295,7 @@ class LauncherIconSettingsHook {
             } else {
                 Settings.Global.putString(resolver, LauncherIconPack.SETTING_PACK, selected)
                 Settings.Global.putInt(resolver, SETTING_THEMED, 0)
+                Settings.Global.putInt(resolver, ColorOsIconStyles.SETTING_STYLE, ColorOsIconStyles.OFF)
             }
             scheduleRefresh(context, clearThemeIcons = true)
         }
@@ -308,8 +328,35 @@ class LauncherIconSettingsHook {
         themed.onChange { value ->
             val enabled = value == true
             Settings.Global.putInt(resolver, SETTING_THEMED, if (enabled) 1 else 0)
-            if (enabled) Settings.Global.putString(resolver, LauncherIconPack.SETTING_PACK, null)
+            if (enabled) {
+                Settings.Global.putString(resolver, LauncherIconPack.SETTING_PACK, null)
+                Settings.Global.putInt(resolver, ColorOsIconStyles.SETTING_STYLE, ColorOsIconStyles.OFF)
+            }
             scheduleRefresh(context, clearThemeIcons = enabled)
+        }
+        osStyle.onChange { value ->
+            val style = (value as? String)?.toIntOrNull() ?: return@onChange
+            Settings.Global.putInt(resolver, ColorOsIconStyles.SETTING_STYLE, style)
+            if (style != ColorOsIconStyles.OFF) {
+                Settings.Global.putString(resolver, LauncherIconPack.SETTING_PACK, null)
+                Settings.Global.putInt(resolver, SETTING_THEMED, 0)
+            }
+            // vivo's themed bitmaps would otherwise win over the app icons we restyle.
+            scheduleRefresh(context, clearThemeIcons = true)
+        }
+        osShape.onChange { value ->
+            val shape = (value as? String)?.toIntOrNull() ?: return@onChange
+            Settings.Global.putInt(resolver, ColorOsIconStyles.SETTING_SHAPE, shape)
+            scheduleRefresh(context, clearThemeIcons = false)
+        }
+        osRadius.onChange { value ->
+            val radius = (value as? String)?.toIntOrNull() ?: return@onChange
+            Settings.Global.putInt(resolver, ColorOsIconStyles.SETTING_RADIUS, radius)
+            scheduleRefresh(context, clearThemeIcons = false)
+        }
+        osDark.onChange { value ->
+            Settings.Global.putInt(resolver, ColorOsIconStyles.SETTING_DARK, if (value == true) 1 else 0)
+            scheduleRefresh(context, clearThemeIcons = false)
         }
         color.onChange { value ->
             val key = value as? String ?: return@onChange
@@ -460,6 +507,32 @@ class LauncherIconSettingsHook {
         val packMono = if (ru) "Монохром" else "Monochrome"
         val packMonoSummary = if (ru) "Чёрно-белые значки пакета" else "Black and white pack icons"
         val packInvertSummary = if (ru) "Негатив значков пакета" else "Negative pack icons"
+        val style = if (ru) "Стиль значков ColorOS" else "ColorOS icon style"
+        val styleOff = if (ru) "Выключен" else "Off"
+        val shape = if (ru) "Форма значков" else "Icon shape"
+        val radius = if (ru) "Скругление углов" else "Corner radius"
+        val darkIcons = if (ru) "Тёмные значки" else "Dark mode icons"
+        val darkIconsSummary = if (ru) "Затемнять значки в тёмной теме, как в ColorOS" else "Dim icons in dark theme, like ColorOS"
+        val shapes = listOf(
+            ColorOsIconStyles.SHAPE_ROUNDED to (if (ru) "Скруглённый квадрат" else "Rounded square"),
+            ColorOsIconStyles.SHAPE_HYPERELLIPTICAL to (if (ru) "Гиперэллипс" else "Hyperellipse"),
+            ColorOsIconStyles.SHAPE_OCTAGON to (if (ru) "Восьмиугольник" else "Octagon"),
+            ColorOsIconStyles.SHAPE_LEAF to (if (ru) "Лист" else "Leaf"),
+            ColorOsIconStyles.SHAPE_STICKER to (if (ru) "Стикер" else "Sticker"),
+            ColorOsIconStyles.SHAPE_PECULIAR to (if (ru) "Капля" else "Peculiar")
+        ).map { it.first.toString() to it.second }
+
+        fun styleName(style: Int): String = when (style) {
+            ColorOsIconStyles.RECTANGLE -> if (ru) "Прямоугольник" else "Rectangle"
+            ColorOsIconStyles.MATERIAL -> if (ru) "Material" else "Material"
+            ColorOsIconStyles.PEBBLE -> if (ru) "Галька" else "Pebble"
+            ColorOsIconStyles.DAYLIGHT -> if (ru) "Дневной свет" else "Daylight"
+            ColorOsIconStyles.NIGHTSHADOW -> if (ru) "Ночная тень" else "Night shadow"
+            ColorOsIconStyles.CUSTOM -> if (ru) "Одноцветный" else "Single color"
+            ColorOsIconStyles.MONOTONE -> if (ru) "Монотон (цвет обоев)" else "Monotone (wallpaper)"
+            ColorOsIconStyles.MEOW -> if (ru) "Мяу" else "Meow"
+            else -> style.toString()
+        }
     }
 
     companion object {
@@ -492,6 +565,10 @@ class LauncherIconSettingsHook {
         private const val KEY_PACK_TINT = "origin_icons_pack_tint"
         private const val KEY_PACK_MONO = "origin_icons_pack_mono"
         private const val KEY_PACK_INVERT = "origin_icons_pack_invert"
+        private const val KEY_OS_STYLE = "origin_icons_coloros_style"
+        private const val KEY_OS_SHAPE = "origin_icons_coloros_shape"
+        private const val KEY_OS_RADIUS = "origin_icons_coloros_radius"
+        private const val KEY_OS_DARK = "origin_icons_coloros_dark"
         private const val PACK_NONE = "system"
 
         private val ICON_PACK_ACTIONS = listOf(
